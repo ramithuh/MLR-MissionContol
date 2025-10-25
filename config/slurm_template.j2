@@ -1,0 +1,66 @@
+#!/bin/bash
+#SBATCH --job-name={{ job_name }}
+#SBATCH --partition={{ partition }}
+#SBATCH --nodes={{ num_nodes }}
+#SBATCH --ntasks-per-node={{ gpus_per_node }}
+#SBATCH --gres=gpu:{% if gpu_type %}{{ gpu_type }}:{% endif %}{{ gpus_per_node }}
+#SBATCH --time={{ time_limit }}
+#SBATCH --output={{ output_file }}
+#SBATCH --error={{ output_file }}
+
+# MLOps Mission Control - Auto-generated SLURM script
+# Job: {{ job_name }}
+# Cluster: {{ partition }}
+# Resources: {{ num_nodes }} node(s), {{ gpus_per_node }} GPU(s) per node{% if gpu_type %} ({{ gpu_type }}){% endif %}
+
+echo "========================================="
+echo "SLURM Job ID: $SLURM_JOB_ID"
+echo "Running on: $(hostname)"
+echo "Started at: $(date)"
+echo "========================================="
+
+# Navigate to workspace
+cd {{ workspace_dir }} || exit 1
+
+# Clone repository if not exists, otherwise pull
+REPO_DIR="{{ workspace_dir }}/{{ job_name }}"
+if [ ! -d "$REPO_DIR" ]; then
+    echo "Cloning repository..."
+    git clone {{ repo_url }} "$REPO_DIR"
+else
+    echo "Repository exists, updating..."
+    cd "$REPO_DIR" && git fetch
+fi
+
+cd "$REPO_DIR" || exit 1
+
+# Checkout specific commit
+echo "Checking out commit: {{ commit_sha }}"
+git checkout {{ commit_sha }}
+
+# Setup environment (modify as needed for your setup)
+{% if conda_env %}
+echo "Activating conda environment: {{ conda_env }}"
+source $(conda info --base)/etc/profile.d/conda.sh
+conda activate {{ conda_env }}
+{% endif %}
+
+# Print environment info
+echo "========================================="
+echo "Python: $(which python)"
+echo "Python version: $(python --version)"
+echo "CUDA_VISIBLE_DEVICES: $CUDA_VISIBLE_DEVICES"
+echo "========================================="
+
+# Run training command
+echo "Executing: {{ python_command }}"
+{{ python_command }}
+
+EXIT_CODE=$?
+
+echo "========================================="
+echo "Finished at: $(date)"
+echo "Exit code: $EXIT_CODE"
+echo "========================================="
+
+exit $EXIT_CODE

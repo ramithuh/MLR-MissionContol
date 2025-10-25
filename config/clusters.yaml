@@ -1,0 +1,11 @@
+clusters:
+  - name: "example-cluster"
+    host: "user@login.cluster.edu"
+    ssh_key_path: "~/.ssh/cluster_key"
+    workspace: "/scratch/username/mlops-jobs"
+
+  # Add your clusters here:
+  # - name: "dgx-cluster-a"
+  #   host: "ramith@dgx-a.university.edu"
+  #   ssh_key_path: "~/.ssh/dgx_key"
+  #   workspace: "/scratch/ramith/mlops-jobs"
