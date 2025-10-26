@@ -48,7 +48,7 @@ function Dashboard() {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="text-gray-600">Loading...</div>
+        <div className="text-dark-text-secondary">Loading...</div>
       </div>
     )
   }
@@ -58,10 +58,10 @@ function Dashboard() {
       {/* Projects Section */}
       <div className="mb-8">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold text-gray-900">Projects</h2>
+          <h2 className="text-2xl font-bold text-dark-text-primary">Projects</h2>
           <button
             onClick={() => setShowAddProject(!showAddProject)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
+            className="bg-accent-green hover:bg-accent-green-hover text-white px-4 py-2 rounded-md transition-colors"
           >
             + Add Project
           </button>
@@ -69,26 +69,26 @@ function Dashboard() {
 
         {/* Add Project Form */}
         {showAddProject && (
-          <form onSubmit={handleAddProject} className="mb-4 bg-white p-4 rounded-lg shadow">
+          <form onSubmit={handleAddProject} className="mb-4 bg-dark-card p-4 rounded-lg border border-dark-border">
             <div className="flex gap-2">
               <input
                 type="text"
                 value={newProjectPath}
                 onChange={(e) => setNewProjectPath(e.target.value)}
                 placeholder="/path/to/your/ml-project"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-3 py-2 bg-dark-bg border border-dark-border rounded-md text-dark-text-primary placeholder-dark-text-muted focus:outline-none focus:ring-2 focus:ring-accent-green"
                 required
               />
               <button
                 type="submit"
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md"
+                className="bg-accent-green hover:bg-accent-green-hover text-white px-4 py-2 rounded-md transition-colors"
               >
                 Add
               </button>
               <button
                 type="button"
                 onClick={() => setShowAddProject(false)}
-                className="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-md"
+                className="bg-dark-border hover:bg-dark-card-hover text-dark-text-secondary px-4 py-2 rounded-md transition-colors"
               >
                 Cancel
               </button>
@@ -98,15 +98,15 @@ function Dashboard() {
 
         {/* Projects Grid */}
         {projects.length === 0 ? (
-          <div className="bg-white p-8 rounded-lg shadow text-center text-gray-600">
+          <div className="bg-dark-card p-8 rounded-lg border border-dark-border text-center text-dark-text-secondary">
             No projects yet. Add your first project to get started!
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {projects.map((project) => (
-              <div key={project.id} className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition">
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">{project.name}</h3>
-                <div className="text-sm text-gray-600 mb-4">
+              <div key={project.id} className="bg-dark-card p-6 rounded-lg border border-dark-border hover:border-accent-green hover:bg-dark-card-hover transition-all">
+                <h3 className="text-xl font-semibold text-dark-text-primary mb-2">{project.name}</h3>
+                <div className="text-sm text-dark-text-secondary mb-4">
                   <div className="truncate">{project.local_path}</div>
                   <div className="mt-1">
                     {project.current_branch} @ {project.current_commit?.substring(0, 7)}
@@ -115,13 +115,13 @@ function Dashboard() {
                 <div className="flex gap-2">
                   <Link
                     to={`/project/${project.id}`}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-center px-4 py-2 rounded-md"
+                    className="flex-1 bg-dark-border hover:bg-dark-card-hover text-dark-text-primary text-center px-4 py-2 rounded-md transition-colors"
                   >
                     View
                   </Link>
                   <Link
                     to={`/project/${project.id}/launch`}
-                    className="flex-1 bg-green-600 hover:bg-green-700 text-white text-center px-4 py-2 rounded-md"
+                    className="flex-1 bg-accent-green hover:bg-accent-green-hover text-white text-center px-4 py-2 rounded-md transition-colors"
                   >
                     Launch Job
                   </Link>
@@ -134,60 +134,60 @@ function Dashboard() {
 
       {/* Active Jobs Section */}
       <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Recent Jobs</h2>
+        <h2 className="text-2xl font-bold text-dark-text-primary mb-4">Recent Jobs</h2>
         {jobs.length === 0 ? (
-          <div className="bg-white p-8 rounded-lg shadow text-center text-gray-600">
+          <div className="bg-dark-card p-8 rounded-lg border border-dark-border text-center text-dark-text-secondary">
             No jobs submitted yet.
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+          <div className="bg-dark-card rounded-lg border border-dark-border overflow-hidden">
+            <table className="min-w-full divide-y divide-dark-border">
+              <thead className="bg-dark-bg">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">
                     Job Name
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">
                     Cluster
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">
                     Resources
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">
                     Submitted
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-dark-card divide-y divide-dark-border">
                 {jobs.map((job) => (
-                  <tr key={job.id} className="hover:bg-gray-50">
+                  <tr key={job.id} className="hover:bg-dark-card-hover transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{job.name}</div>
+                      <div className="text-sm font-medium text-dark-text-primary">{job.name}</div>
                       {job.description && (
-                        <div className="text-sm text-gray-500">{job.description}</div>
+                        <div className="text-sm text-dark-text-secondary">{job.description}</div>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">
                       {job.cluster}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        job.slurm_status === 'RUNNING' ? 'bg-green-100 text-green-800' :
-                        job.slurm_status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-                        job.slurm_status === 'COMPLETED' ? 'bg-blue-100 text-blue-800' :
-                        job.slurm_status === 'FAILED' ? 'bg-red-100 text-red-800' :
-                        'bg-gray-100 text-gray-800'
+                        job.slurm_status === 'RUNNING' ? 'bg-accent-green/20 text-accent-green' :
+                        job.slurm_status === 'PENDING' ? 'bg-yellow-900/20 text-yellow-400' :
+                        job.slurm_status === 'COMPLETED' ? 'bg-blue-900/20 text-blue-400' :
+                        job.slurm_status === 'FAILED' ? 'bg-red-900/20 text-red-400' :
+                        'bg-dark-border text-dark-text-muted'
                       }`}>
                         {job.slurm_status || 'UNKNOWN'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">
                       {job.num_nodes}x {job.gpus_per_node} {job.gpu_type || 'GPU'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">
                       {new Date(job.submitted_at).toLocaleString()}
                     </td>
                   </tr>
