@@ -3,24 +3,26 @@ import { Toaster } from 'react-hot-toast'
 import Dashboard from './pages/Dashboard'
 import ProjectView from './pages/ProjectView'
 import LaunchJob from './pages/LaunchJob'
+import ClusterVisualization from './pages/ClusterVisualization'
 
 function App() {
   return (
     <Router>
-      <div className="min-h-screen bg-gray-100">
+      <div className="min-h-screen bg-dark-bg">
         {/* Toast notifications */}
         <Toaster
           position="bottom-right"
           toastOptions={{
             duration: 4000,
             style: {
-              background: '#363636',
-              color: '#fff',
+              background: '#1a1a1a',
+              color: '#ffffff',
+              border: '1px solid #2a2a2a',
             },
             success: {
               duration: 3000,
               iconTheme: {
-                primary: '#10B981',
+                primary: '#76B900',
                 secondary: '#fff',
               },
             },
@@ -34,12 +36,12 @@ function App() {
           }}
         />
         {/* Navigation */}
-        <nav className="bg-white shadow-sm">
+        <nav className="bg-dark-card border-b border-dark-border">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between h-16">
               <div className="flex">
                 <Link to="/" className="flex items-center">
-                  <span className="text-xl font-bold text-gray-900">
+                  <span className="text-xl font-bold text-dark-text-primary">
                     MLOps Mission Control
                   </span>
                 </Link>
@@ -47,9 +49,15 @@ function App() {
               <div className="flex items-center space-x-4">
                 <Link
                   to="/"
-                  className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+                  className="text-dark-text-secondary hover:text-accent-green px-3 py-2 rounded-md text-sm font-medium transition-colors"
                 >
                   Dashboard
+                </Link>
+                <Link
+                  to="/clusters"
+                  className="text-dark-text-secondary hover:text-accent-green px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                >
+                  GPU Clusters
                 </Link>
               </div>
             </div>
@@ -60,6 +68,7 @@ function App() {
         <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/clusters" element={<ClusterVisualization />} />
             <Route path="/project/:projectId" element={<ProjectView />} />
             <Route path="/project/:projectId/launch" element={<LaunchJob />} />
           </Routes>
