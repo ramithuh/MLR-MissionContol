@@ -124,7 +124,7 @@ function LaunchJob() {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="text-gray-600">Loading...</div>
+        <div className="text-dark-text-secondary">Loading...</div>
       </div>
     )
   }
@@ -133,19 +133,19 @@ function LaunchJob() {
 
   return (
     <div className="px-4 py-6 max-w-3xl mx-auto">
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Launch Job</h1>
+      <h1 className="text-3xl font-bold text-dark-text-primary mb-6">Launch Job</h1>
 
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <div className="text-sm text-gray-600">
+      <div className="bg-dark-card rounded-lg border border-dark-border p-6 mb-6">
+        <div className="text-sm text-dark-text-secondary">
           <div><span className="font-medium">Project:</span> {project?.name}</div>
           <div><span className="font-medium">Commit:</span> {project?.current_commit}</div>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-6">
+      <form onSubmit={handleSubmit} className="bg-dark-card rounded-lg border border-dark-border p-6 space-y-6">
         {/* Job Name */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-dark-text-primary mb-2">
             Job Name
           </label>
           <input
@@ -154,13 +154,13 @@ function LaunchJob() {
             value={formData.name}
             onChange={handleInputChange}
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-md text-dark-text-primary focus:outline-none focus:ring-2 focus:ring-accent-green"
           />
         </div>
 
         {/* Description */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-dark-text-primary mb-2">
             Description (Optional)
           </label>
           <textarea
@@ -168,14 +168,14 @@ function LaunchJob() {
             value={formData.description}
             onChange={handleInputChange}
             rows="3"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-md text-dark-text-primary placeholder-dark-text-muted focus:outline-none focus:ring-2 focus:ring-accent-green"
             placeholder="Brief description of this experiment..."
           />
         </div>
 
         {/* Cluster Selection */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-dark-text-primary mb-2">
             Cluster
           </label>
           <select
@@ -183,7 +183,7 @@ function LaunchJob() {
             value={formData.cluster}
             onChange={handleInputChange}
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-md text-dark-text-primary focus:outline-none focus:ring-2 focus:ring-accent-green"
           >
             <option value="">Select a cluster</option>
             {clusters.map(cluster => (
@@ -198,14 +198,14 @@ function LaunchJob() {
         {formData.cluster && (
           <>
             {loadingResources ? (
-              <div className="text-center text-gray-600 py-4">
+              <div className="text-center text-dark-text-secondary py-4">
                 Loading cluster resources...
               </div>
             ) : (
               <>
                 {/* Partition */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-dark-text-primary mb-2">
                     Partition
                   </label>
                   <select
@@ -213,7 +213,7 @@ function LaunchJob() {
                     value={formData.partition}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-md text-dark-text-primary focus:outline-none focus:ring-2 focus:ring-accent-green"
                   >
                     {partitions.map(partition => (
                       <option key={partition} value={partition}>
@@ -225,7 +225,7 @@ function LaunchJob() {
 
                 {/* GPU Type */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-dark-text-primary mb-2">
                     GPU Type
                   </label>
                   <select
@@ -233,7 +233,7 @@ function LaunchJob() {
                     value={formData.gpu_type}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-md text-dark-text-primary focus:outline-none focus:ring-2 focus:ring-accent-green"
                   >
                     {gpuAvailability.map(gpu => (
                       <option key={gpu.gpu_type} value={gpu.gpu_type}>
@@ -243,15 +243,15 @@ function LaunchJob() {
                   </select>
                   {selectedGPU && (
                     <div className="mt-2 text-sm space-y-1">
-                      <div className="text-gray-600">
+                      <div className="text-dark-text-secondary">
                         <span className="font-medium">Available:</span> {selectedGPU.available} |
                         <span className="font-medium"> In Use:</span> {selectedGPU.in_use}
                         {selectedGPU.pending > 0 && (
-                          <span> | <span className="font-medium text-yellow-600">Pending:</span> {selectedGPU.pending}</span>
+                          <span> | <span className="font-medium text-yellow-400">Pending:</span> {selectedGPU.pending}</span>
                         )}
                       </div>
                       {selectedGPU.nodes_with_free && selectedGPU.nodes_with_free.length > 0 && (
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-dark-text-muted">
                           <span className="font-medium">Nodes:</span> {selectedGPU.nodes_with_free.slice(0, 3).join(', ')}
                           {selectedGPU.nodes_with_free.length > 3 && ` +${selectedGPU.nodes_with_free.length - 3} more`}
                         </div>
@@ -262,7 +262,7 @@ function LaunchJob() {
 
                 {/* Number of Nodes */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-dark-text-primary mb-2">
                     Number of Nodes
                   </label>
                   <input
@@ -272,13 +272,13 @@ function LaunchJob() {
                     onChange={handleInputChange}
                     min="1"
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-md text-dark-text-primary focus:outline-none focus:ring-2 focus:ring-accent-green"
                   />
                 </div>
 
                 {/* GPUs per Node */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-dark-text-primary mb-2">
                     GPUs per Node
                   </label>
                   <input
@@ -289,16 +289,16 @@ function LaunchJob() {
                     min="1"
                     max="8"
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-md text-dark-text-primary focus:outline-none focus:ring-2 focus:ring-accent-green"
                   />
                 </div>
 
                 {/* Total Resources Summary */}
-                <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-                  <div className="text-sm font-medium text-blue-900">
+                <div className="bg-accent-green/10 border border-accent-green/30 rounded-md p-4">
+                  <div className="text-sm font-medium text-accent-green">
                     Total Resources Requested:
                   </div>
-                  <div className="text-sm text-blue-800 mt-1">
+                  <div className="text-sm text-dark-text-primary mt-1">
                     {formData.num_nodes} node(s) × {formData.gpus_per_node} {formData.gpu_type} GPU(s) = {formData.num_nodes * formData.gpus_per_node} total GPUs
                   </div>
                 </div>
@@ -308,11 +308,11 @@ function LaunchJob() {
         )}
 
         {/* Hydra Config (Placeholder) */}
-        <div className="border-t pt-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-3">
+        <div className="border-t border-dark-border pt-6">
+          <h3 className="text-lg font-medium text-dark-text-primary mb-3">
             Hydra Configuration
           </h3>
-          <div className="text-sm text-gray-600 bg-gray-50 p-4 rounded-md">
+          <div className="text-sm text-dark-text-secondary bg-dark-bg p-4 rounded-md border border-dark-border">
             Hydra config overrides will be implemented in Phase 2.
             For now, default configs will be used.
           </div>
@@ -323,14 +323,14 @@ function LaunchJob() {
           <button
             type="submit"
             disabled={submitting || !formData.cluster}
-            className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-md font-medium"
+            className="flex-1 bg-accent-green hover:bg-accent-green-hover disabled:bg-dark-border disabled:text-dark-text-muted text-white px-6 py-3 rounded-md font-medium transition-colors"
           >
             {submitting ? 'Submitting...' : 'Submit Job'}
           </button>
           <button
             type="button"
             onClick={() => navigate(`/project/${projectId}`)}
-            className="px-6 py-3 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+            className="px-6 py-3 border border-dark-border rounded-md text-dark-text-primary hover:bg-dark-card-hover transition-colors"
           >
             Cancel
           </button>
