@@ -42,7 +42,7 @@ MLOps Mission Control is a full-stack web application for managing ML experiment
 
 ### Frontend (React + Vite)
 
-**Technology**: React 18, Vite, TailwindCSS, React Router, Axios
+**Technology**: React 18, Vite, TailwindCSS, React Router, Axios, react-hot-toast
 
 **Pages**:
 - `Dashboard.jsx`: Overview of all projects and recent jobs
@@ -53,19 +53,20 @@ MLOps Mission Control is a full-stack web application for managing ML experiment
 - `api.js`: Axios-based HTTP client for backend communication
 
 **Key Features**:
-- Real-time job status display
-- Dynamic form generation for Hydra configs
-- GPU availability visualization
+- Real-time job status display (auto-updates via background polling)
+- Toast notifications for all user actions (success/error feedback)
+- GPU availability visualization with caching
+- Dynamic resource configuration
 - WandB integration links
 
 ### Backend (FastAPI)
 
-**Technology**: Python 3.10+, FastAPI, SQLAlchemy, Paramiko, GitPython
+**Technology**: Python 3.10+, FastAPI, SQLAlchemy, APScheduler, Paramiko, GitPython
 
 **API Modules** (`app/api/`):
 - `projects.py`: Project management endpoints
 - `jobs.py`: Job submission and monitoring endpoints
-- `clusters.py`: Cluster information and GPU availability endpoints
+- `clusters.py`: Cluster information and GPU availability endpoints (with 60s caching)
 
 **Core Modules** (`app/core/`):
 - `config.py`: Application settings and configuration
@@ -74,9 +75,11 @@ MLOps Mission Control is a full-stack web application for managing ML experiment
 
 **Service Modules** (`app/services/`):
 - `git_service.py`: Git repository metadata extraction
-- `hydra_parser.py`: Hydra YAML configuration parsing
+- `project_config.py`: Project-level configuration reader (.mlops-config.yaml)
 - `slurm_generator.py`: Dynamic SLURM script generation from templates
-- `job_monitor.py`: Job status polling and log fetching
+- `job_monitor.py`: Job status checking and log fetching
+- `job_poller.py`: Background job status polling (APScheduler)
+- `hydra_parser.py`: Hydra YAML configuration parsing (Phase 2)
 
 **Data Models** (`app/models/`):
 - `project.py`: SQLAlchemy model for ML projects
@@ -85,8 +88,12 @@ MLOps Mission Control is a full-stack web application for managing ML experiment
 ### Configuration
 
 **Files**:
-- `config/clusters.yaml`: Cluster definitions (SSH hosts, keys, workspaces)
+- `config/clusters.yaml`: Cluster definitions (SSH hosts, keys, workspaces) - excluded from git
+- `config/clusters.yaml.example`: Template for cluster configuration
 - `config/slurm_template.j2`: Jinja2 template for SLURM batch scripts
+
+**Project-Level Configuration**:
+- `.mlops-config.yaml`: Per-project settings (conda env, train script, etc.)
 
 ### Scripts
 
@@ -179,20 +186,21 @@ MLOps Mission Control is a full-stack web application for managing ML experiment
    - Runs `sbatch` command
    - Captures SLURM job ID
    - Updates job record with job ID and status
-7. **Background monitoring** (Phase 3):
-   - Periodically poll job status via `squeue`/`sacct`
-   - Fetch logs and parse for WandB URL
-   - Update job record in DB
+7. **Background monitoring** (Implemented):
+   - APScheduler runs job poller every 30 seconds
+   - Only polls jobs with active statuses (PENDING, RUNNING, CONFIGURING, SUBMITTING)
+   - Automatically stops polling when jobs reach terminal states
+   - Updates job status in database in real-time
 
-### Job Monitoring Flow (Phase 3)
+### Job Monitoring Flow (Implemented)
 
-1. **Background task runs every 30 seconds** for active jobs
-2. **SSH to cluster** and run `squeue -j {job_id}`
-3. **Update job status** in database
-4. **Fetch logs** if job is running/completed
-5. **Parse logs** for WandB URL using regex
-6. **Update database** with WandB URL
-7. **Frontend polls** backend every 10 seconds to refresh UI
+1. **Background task runs every 30 seconds** (APScheduler)
+2. **Query database** for jobs with active statuses only
+3. **Group jobs by cluster** to minimize SSH connections
+4. **SSH to cluster** and run `squeue -j {job_id}` or `sacct -j {job_id}`
+5. **Update job status** in database if changed
+6. **Skip polling** if no active jobs exist
+7. **Frontend displays** updated status on page refresh (no active polling needed)
 
 ## Security Considerations
 
@@ -204,24 +212,27 @@ MLOps Mission Control is a full-stack web application for managing ML experiment
 - **SQL Injection**: SQLAlchemy ORM prevents SQL injection
 - **Path Traversal**: User inputs sanitized before file operations
 
-## Future Enhancements
+## Current Implementation Status
 
-### Phase 2: Core Features
-- Full Hydra config parser with UI form generation
+### Implemented (MVP Complete)
+- Project management with Git integration
 - Multi-cluster job submission
-- Real GPU availability integration
-- Job cancellation
+- Real GPU availability with caching
+- Background job status polling (APScheduler)
+- Project-level configuration system (.mlops-config.yaml)
+- Toast notifications for user feedback
+- WandB URL extraction from logs
 
-### Phase 3: Monitoring & Polish
-- Background job status polling
-- Log streaming
-- WandB metrics integration (API-based)
-- Email notifications
-- Job templates
+### Phase 2: Enhanced Features
+- Full Hydra config parser with UI form generation
+- Job cancellation from UI
+- Log viewer in browser
+- Job filtering and search
 
-### Phase 4: Advanced
+### Phase 3: Production Features
 - Multi-user support with authentication
-- Job history analytics
-- Resource usage dashboards
+- Job history analytics and dashboards
+- Email/Slack notifications
 - Hyperparameter sweep support
+- Database migrations (Alembic)
 - Integration with other experiment trackers (MLflow, etc.)
