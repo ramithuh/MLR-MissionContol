@@ -103,7 +103,7 @@ class SlurmScriptGenerator:
         Returns:
             Complete python command string
         """
-        cmd = f"python {script_path}"
+        cmd = f"python3 {script_path}"
 
         # Add Hydra overrides
         if hydra_overrides:
