@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from pydantic import BaseModel
+from datetime import datetime
 
 from app.core.database import get_db
 from app.models.project import Project
@@ -22,8 +23,8 @@ class ProjectResponse(BaseModel):
     repo_url: str | None
     current_branch: str | None
     current_commit: str | None
-    added_at: str
-    last_synced: str
+    added_at: datetime
+    last_synced: datetime
 
     class Config:
         from_attributes = True
@@ -87,7 +88,7 @@ async def get_project(project_id: str, db: Session = Depends(get_db)):
 async def sync_project(project_id: str, db: Session = Depends(get_db)):
     """
     Sync project metadata with local Git repository.
-    Updates branch and commit SHA.
+    Updates repo URL, branch, and commit SHA.
     """
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
@@ -96,6 +97,7 @@ async def sync_project(project_id: str, db: Session = Depends(get_db)):
     git_service = GitService(project.local_path)
     metadata = git_service.get_repo_metadata()
 
+    project.repo_url = metadata["repo_url"]
     project.current_branch = metadata["branch"]
     project.current_commit = metadata["commit_sha"]
 
