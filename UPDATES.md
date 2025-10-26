@@ -94,7 +94,7 @@ Total free GPUs: 10
 
 3. **Test via API** (with backend running):
    ```bash
-   curl http://localhost:8000/api/clusters/your-cluster/gpu-availability
+   curl http://localhost:8028/api/clusters/your-cluster/gpu-availability
    ```
 
 ### Benefits
