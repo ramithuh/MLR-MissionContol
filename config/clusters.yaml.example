@@ -1,0 +1,34 @@
+clusters:
+  - name: "example-cluster"
+    host: "username@login.cluster.edu"
+    ssh_key_path: "~/.ssh/id_ed25519"
+    workspace: "/home/username/mlops-jobs"
+
+    # Optional: Cluster-level default conda environment
+    # This can be overridden by project-level .mlops-config.yaml
+    # conda_env: "pytorch"
+
+    # Optional: Restrict to specific partitions
+    # If not specified, all partitions from sinfo are shown
+    allowed_partitions:
+      - "gpu"
+      - "long"
+
+    # Optional: Restrict to specific GPU types
+    # If not specified, all GPUs are shown
+    allowed_gpu_types:
+      - "A6000"
+      - "A100_40GB"
+      - "A100_80GB"
+      - "H100"
+
+  # Add more clusters as needed:
+  # - name: "cluster-2"
+  #   host: "username@cluster2.edu"
+  #   ssh_key_path: "~/.ssh/id_rsa"
+  #   workspace: "/scratch/username/mlops-jobs"
+  #   allowed_partitions:
+  #     - "preempt"
+  #   allowed_gpu_types:
+  #     - "V100"
+  #     - "RTX3090"

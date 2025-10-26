@@ -11,6 +11,11 @@ ENV/
 dist/
 build/
 
+# Conda
+.conda/
+*.conda
+.condarc
+
 # Database
 *.db
 *.sqlite
@@ -43,6 +48,9 @@ frontend/build/
 *.key
 id_rsa*
 *.ppk
+
+# Cluster configuration (contains personal SSH info)
+config/clusters.yaml
 
 # OS
 .DS_Store
