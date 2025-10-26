@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
+import { Toaster } from 'react-hot-toast'
 import Dashboard from './pages/Dashboard'
 import ProjectView from './pages/ProjectView'
 import LaunchJob from './pages/LaunchJob'
@@ -7,6 +8,31 @@ function App() {
   return (
     <Router>
       <div className="min-h-screen bg-gray-100">
+        {/* Toast notifications */}
+        <Toaster
+          position="bottom-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#363636',
+              color: '#fff',
+            },
+            success: {
+              duration: 3000,
+              iconTheme: {
+                primary: '#10B981',
+                secondary: '#fff',
+              },
+            },
+            error: {
+              duration: 5000,
+              iconTheme: {
+                primary: '#EF4444',
+                secondary: '#fff',
+              },
+            },
+          }}
+        />
         {/* Navigation */}
         <nav className="bg-white shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import {
   getProject,
   getClusters,
@@ -59,6 +60,7 @@ function LaunchJob() {
       }))
     } catch (error) {
       console.error('Error fetching data:', error)
+      toast.error('Failed to load project data')
     } finally {
       setLoading(false)
     }
@@ -86,6 +88,7 @@ function LaunchJob() {
       }
     } catch (error) {
       console.error('Error fetching cluster resources:', error)
+      toast.error(`Failed to load cluster resources: ${error.response?.data?.detail || error.message}`)
     } finally {
       setLoadingResources(false)
     }
@@ -108,10 +111,11 @@ function LaunchJob() {
         ...formData
       }
       await createJob(jobData)
+      toast.success('Job submitted successfully!')
       navigate(`/project/${projectId}`)
     } catch (error) {
       console.error('Error submitting job:', error)
-      alert('Failed to submit job. Check console for details.')
+      toast.error(`Failed to submit job: ${error.response?.data?.detail || error.message}`)
     } finally {
       setSubmitting(false)
     }
