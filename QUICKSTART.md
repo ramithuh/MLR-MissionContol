@@ -4,7 +4,16 @@ Get MLOps Mission Control running in 5 minutes!
 
 ## 1. Install Dependencies
 
-### Backend
+### Backend (Choose one)
+
+**Option A: Conda (Recommended for ML workflows)**
+```bash
+cd backend
+conda env create -f environment.yml
+conda activate mlops-control
+```
+
+**Option B: Venv (Lightweight)**
 ```bash
 cd backend
 python -m venv venv
@@ -40,7 +49,7 @@ ssh -i ~/.ssh/cluster_key username@login.cluster.edu
 **Terminal 1 - Backend:**
 ```bash
 cd backend
-source venv/bin/activate
+conda activate mlops-control  # or: source venv/bin/activate
 uvicorn app.main:app --reload
 ```
 
@@ -130,16 +139,16 @@ Test the backend API (with backend running):
 
 ```bash
 # Health check
-curl http://localhost:8000/
+curl http://localhost:8028/
 
 # List projects
-curl http://localhost:8000/api/projects/
+curl http://localhost:8028/api/projects/
 
 # List clusters
-curl http://localhost:8000/api/clusters/
+curl http://localhost:8028/api/clusters/
 
 # API documentation
-open http://localhost:8000/docs
+open http://localhost:8028/docs
 ```
 
 ## Common Issues
@@ -153,7 +162,7 @@ open http://localhost:8000/docs
 - Test manually: `ssh -i ~/.ssh/cluster_key user@host`
 
 **Frontend can't reach backend?**
-- Check backend is running on port 8000
+- Check backend is running on port 8028
 - Check CORS settings in `backend/app/main.py`
 
 **Module not found errors?**

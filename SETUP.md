@@ -84,8 +84,8 @@ cd backend
 source venv/bin/activate
 uvicorn app.main:app --reload
 
-# Backend will run on http://localhost:8000
-# API docs available at http://localhost:8000/docs
+# Backend will run on http://localhost:8028
+# API docs available at http://localhost:8028/docs
 ```
 
 #### Start Frontend
@@ -131,11 +131,11 @@ rm mlops_mission_control.db
 
 ### Port Already in Use
 
-If port 8000 or 5173 is already in use:
+If port 8028 or 5173 is already in use:
 
 Backend:
 ```bash
-uvicorn app.main:app --reload --port 8001
+uvicorn app.main:app --reload --port 8028
 ```
 
 Frontend: Edit `vite.config.js` and change the port.
@@ -155,7 +155,7 @@ After setting up the skeleton:
 2. Both have hot-reload enabled, so changes appear automatically
 3. Check backend logs in the terminal running uvicorn
 4. Check frontend console in browser DevTools
-5. Test API endpoints at http://localhost:8000/docs
+5. Test API endpoints at http://localhost:8028/docs
 
 ## Production Deployment
 
