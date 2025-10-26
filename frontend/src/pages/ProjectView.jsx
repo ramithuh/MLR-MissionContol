@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import { getProject, getJobs, syncProject } from '../services/api'
 
 function ProjectView() {
@@ -23,6 +24,7 @@ function ProjectView() {
       setJobs(jobsData)
     } catch (error) {
       console.error('Error fetching project:', error)
+      toast.error('Failed to load project data')
     } finally {
       setLoading(false)
     }
@@ -32,8 +34,10 @@ function ProjectView() {
     try {
       const updatedProject = await syncProject(projectId)
       setProject(updatedProject)
+      toast.success('Project synced successfully!')
     } catch (error) {
       console.error('Error syncing project:', error)
+      toast.error(`Failed to sync project: ${error.response?.data?.detail || error.message}`)
     }
   }
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import { getProjects, createProject, getJobs } from '../services/api'
 
 function Dashboard() {
@@ -24,6 +25,7 @@ function Dashboard() {
       setJobs(jobsData)
     } catch (error) {
       console.error('Error fetching data:', error)
+      toast.error('Failed to load dashboard data')
     } finally {
       setLoading(false)
     }
@@ -33,12 +35,13 @@ function Dashboard() {
     e.preventDefault()
     try {
       await createProject(newProjectPath)
+      toast.success('Project added successfully!')
       setNewProjectPath('')
       setShowAddProject(false)
       fetchData()
     } catch (error) {
       console.error('Error adding project:', error)
-      alert('Failed to add project. Check console for details.')
+      toast.error(`Failed to add project: ${error.response?.data?.detail || error.message}`)
     }
   }
 
