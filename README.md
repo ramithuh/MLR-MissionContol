@@ -1,4 +1,4 @@
-# MLOps Mission Control Dashboard
+# MLOps Mission Control Dashboard [WIP, feedback/ ideas welcome!]
 
 A centralized web dashboard for submitting and monitoring Hydra-configured ML jobs across multiple SLURM clusters.
 
