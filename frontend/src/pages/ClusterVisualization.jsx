@@ -156,11 +156,7 @@ function ClusterCard({ cluster, gpuTypes, hasError }) {
 
   return (
     <div className="relative">
-      <div className="w-full px-6 py-5 rounded-lg border-2 border-dark-border transition-all duration-200 hover:shadow-2xl hover:border-accent-green bg-dark-card"
-           style={{
-             background: `repeating-linear-gradient(0deg, #1a1a1a 0px, #1a1a1a 1px, #2a2a2a 1px, #2a2a2a 2px), repeating-linear-gradient(90deg, #1a1a1a 0px, #1a1a1a 1px, #2a2a2a 1px, #2a2a2a 2px)`,
-             boxShadow: 'rgba(0, 0, 0, 0.6) 0px 20px 40px, rgba(0, 0, 0, 0.5) 0px 0px 20px inset, rgba(255, 255, 255, 0.1) 0px 1px 0px inset'
-           }}>
+      <div className="w-full px-6 py-5 rounded-lg border-2 border-dark-border bg-dark-card">
 
         {/* Cluster Name Header with Stats */}
         <div className="mb-5 pb-4 border-b border-dark-border">
@@ -248,7 +244,7 @@ function GPURackVisual({ gpu }) {
   const unavailableCount = pendingCount + inUseCount
   const animatedNodes = useMemo(() => {
     const nodes = new Map() // Map of index -> { duration, delay }
-    const targetCount = Math.max(1, Math.floor(unavailableCount * 0.2)) // 50% of unavailable
+    const targetCount = Math.max(1, Math.floor(unavailableCount * 0.3)) // 50% of unavailable
     const usedIndices = new Set()
 
     // Generate random unique indices with random durations and delays
@@ -257,7 +253,7 @@ function GPURackVisual({ gpu }) {
       if (!usedIndices.has(idx)) {
         usedIndices.add(idx)
         // Random duration between 0.2s and 1.4s for faster, more active pulsing
-        const duration = 0.2 + Math.random() * 1.2
+        const duration = 0.5 + Math.random() * 1.2
         // Random delay to desynchronize animations (0s to duration)
         const delay = Math.random() * duration
         nodes.set(idx, { duration, delay })
@@ -384,7 +380,7 @@ function GPURackVisual({ gpu }) {
                 key={idx}
                 className={`rounded-sm transition-all ${
                   status === 'available'
-                    ? 'bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.6)]'
+                    ? 'bg-green-500'
                     : `bg-red-600 shadow-inner ${shouldAnimate ? 'animate-pulse' : ''}`
                 }`}
                 style={{
