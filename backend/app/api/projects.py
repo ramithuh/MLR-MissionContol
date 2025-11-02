@@ -110,18 +110,37 @@ async def sync_project(project_id: str, db: Session = Depends(get_db)):
 @router.get("/{project_id}/hydra-config")
 async def get_hydra_config(project_id: str, db: Session = Depends(get_db)):
     """
-    Parse Hydra configuration from project's conf/ directory.
+    Parse Hydra configuration from project's conf/ or configs/ directory.
     Returns a JSON structure for dynamic UI form generation.
     """
+    from app.services.hydra_parser import HydraParser
+
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # TODO: Implement HydraParser service
-    return {
-        "config_groups": {},
-        "message": "Hydra parser not yet implemented"
-    }
+    try:
+        parser = HydraParser(project.local_path)
+        config_data = parser.parse_config_groups()
+        ui_schema = parser.build_ui_schema()
+
+        return {
+            "success": True,
+            "config_groups": config_data["config_groups"],
+            "main_config": config_data["main_config"],
+            "ui_schema": ui_schema
+        }
+    except ValueError as e:
+        # No Hydra config directory found
+        return {
+            "success": False,
+            "error": str(e),
+            "config_groups": {},
+            "main_config": {},
+            "ui_schema": {"groups": []}
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error parsing Hydra config: {str(e)}")
 
 
 @router.delete("/{project_id}")

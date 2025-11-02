@@ -2,20 +2,29 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { getProject, getJobs, syncProject } from '../services/api'
+import ScriptPreviewModal from '../components/ScriptPreviewModal'
 
 function ProjectView() {
   const { projectId } = useParams()
   const [project, setProject] = useState(null)
   const [jobs, setJobs] = useState([])
   const [loading, setLoading] = useState(true)
+  const [viewingScript, setViewingScript] = useState(null)
 
   useEffect(() => {
     fetchData()
+
+    // Auto-refresh every 30 seconds to pick up job status and WandB URL updates
+    const interval = setInterval(() => {
+      fetchData(false) // Don't show loading spinner on auto-refresh
+    }, 30000)
+
+    return () => clearInterval(interval)
   }, [projectId])
 
-  const fetchData = async () => {
+  const fetchData = async (showLoading = true) => {
     try {
-      setLoading(true)
+      if (showLoading) setLoading(true)
       const [projectData, jobsData] = await Promise.all([
         getProject(projectId),
         getJobs(projectId)
@@ -24,9 +33,9 @@ function ProjectView() {
       setJobs(jobsData)
     } catch (error) {
       console.error('Error fetching project:', error)
-      toast.error('Failed to load project data')
+      if (showLoading) toast.error('Failed to load project data')
     } finally {
-      setLoading(false)
+      if (showLoading) setLoading(false)
     }
   }
 
@@ -118,6 +127,9 @@ function ProjectView() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">
                     Submitted
                   </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-dark-card divide-y divide-dark-border">
@@ -148,20 +160,43 @@ function ProjectView() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       {job.wandb_run_url ? (
-                        <a
-                          href={job.wandb_run_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-accent-green hover:text-accent-green-hover transition-colors"
-                        >
-                          View Run
-                        </a>
+                        <div className="flex gap-3">
+                          <a
+                            href={job.wandb_run_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-accent-green hover:text-accent-green-hover transition-colors"
+                          >
+                            View Run
+                          </a>
+                          <span className="text-dark-text-muted">|</span>
+                          <a
+                            href={`${job.wandb_run_url}/logs`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-400 hover:text-blue-300 transition-colors"
+                          >
+                            Logs
+                          </a>
+                        </div>
                       ) : (
                         <span className="text-dark-text-muted">-</span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">
                       {new Date(job.submitted_at).toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {job.slurm_script ? (
+                        <button
+                          onClick={() => setViewingScript(job.slurm_script)}
+                          className="text-blue-400 hover:text-blue-300 transition-colors"
+                        >
+                          View Script
+                        </button>
+                      ) : (
+                        <span className="text-dark-text-muted">-</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -170,6 +205,17 @@ function ProjectView() {
           </div>
         )}
       </div>
+
+      {/* Script Viewer Modal */}
+      {viewingScript && (
+        <ScriptPreviewModal
+          script={viewingScript}
+          onClose={() => setViewingScript(null)}
+          onConfirm={() => setViewingScript(null)}
+          isSubmitting={false}
+          viewOnly={true}
+        />
+      )}
     </div>
   )
 }

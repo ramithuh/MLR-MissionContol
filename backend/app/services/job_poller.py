@@ -131,6 +131,10 @@ class JobStatusPoller:
                             job.slurm_status = status
                             job.updated_at = datetime.utcnow()
 
+                        # Extract WandB URL if job is running and we don't have it yet
+                        if status == "RUNNING" and not job.wandb_run_url:
+                            self._try_extract_wandb_url(job, job_monitor, cluster_config)
+
                     except Exception as e:
                         logger.error(
                             f"Error checking status for job {job.id} "
@@ -139,6 +143,37 @@ class JobStatusPoller:
 
         except Exception as e:
             logger.error(f"Error connecting to cluster {cluster_name}: {e}")
+
+    def _try_extract_wandb_url(
+        self,
+        job: Job,
+        job_monitor: JobMonitor,
+        cluster_config: Dict
+    ):
+        """
+        Try to extract WandB URL from job logs.
+
+        Args:
+            job: Job object
+            job_monitor: JobMonitor instance
+            cluster_config: Cluster configuration dict
+        """
+        try:
+            # Construct log file path
+            log_path = f"{cluster_config['workspace']}/logs/{job.name}-{job.slurm_job_id}.out"
+
+            # Fetch recent logs (more lines to ensure we catch WandB URL)
+            logs = job_monitor.get_job_logs(log_path, tail_lines=200)
+
+            # Extract WandB URL
+            wandb_url = job_monitor.extract_wandb_url(logs)
+
+            if wandb_url:
+                logger.info(f"Extracted WandB URL for job {job.name}: {wandb_url}")
+                job.wandb_run_url = wandb_url
+
+        except Exception as e:
+            logger.debug(f"Could not extract WandB URL for job {job.name}: {e}")
 
 
 # Global poller instance
