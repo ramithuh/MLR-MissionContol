@@ -6,8 +6,11 @@ import {
   getClusters,
   getGPUAvailability,
   getPartitions,
-  createJob
+  createJob,
+  previewJob
 } from '../services/api'
+import HydraConfigForm from '../components/HydraConfigForm'
+import ScriptPreviewModal from '../components/ScriptPreviewModal'
 
 function LaunchJob() {
   const { projectId } = useParams()
@@ -32,6 +35,10 @@ function LaunchJob() {
   const [partitions, setPartitions] = useState([])
   const [loadingResources, setLoadingResources] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [hydraOverrides, setHydraOverrides] = useState({})
+  const [showPreview, setShowPreview] = useState(false)
+  const [previewScript, setPreviewScript] = useState('')
+  const [previewLoading, setPreviewLoading] = useState(false)
 
   useEffect(() => {
     fetchInitialData()
@@ -102,13 +109,37 @@ function LaunchJob() {
     }))
   }
 
-  const handleSubmit = async (e) => {
+  const handleHydraConfigChange = (config) => {
+    setHydraOverrides(config)
+  }
+
+  const handlePreview = async (e) => {
     e.preventDefault()
+    try {
+      setPreviewLoading(true)
+      const jobData = {
+        project_id: projectId,
+        ...formData,
+        hydra_overrides: Object.keys(hydraOverrides).length > 0 ? hydraOverrides : null
+      }
+      const result = await previewJob(jobData)
+      setPreviewScript(result.script)
+      setShowPreview(true)
+    } catch (error) {
+      console.error('Error previewing job:', error)
+      toast.error(`Failed to preview script: ${error.response?.data?.detail || error.message}`)
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
+
+  const handleConfirmSubmit = async () => {
     try {
       setSubmitting(true)
       const jobData = {
         project_id: projectId,
-        ...formData
+        ...formData,
+        hydra_overrides: Object.keys(hydraOverrides).length > 0 ? hydraOverrides : null
       }
       await createJob(jobData)
       toast.success('Job submitted successfully!')
@@ -116,6 +147,7 @@ function LaunchJob() {
     } catch (error) {
       console.error('Error submitting job:', error)
       toast.error(`Failed to submit job: ${error.response?.data?.detail || error.message}`)
+      setShowPreview(false)
     } finally {
       setSubmitting(false)
     }
@@ -142,7 +174,7 @@ function LaunchJob() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-dark-card rounded-lg border border-dark-border p-6 space-y-6">
+      <form onSubmit={handlePreview} className="bg-dark-card rounded-lg border border-dark-border p-6 space-y-6">
         {/* Job Name */}
         <div>
           <label className="block text-sm font-medium text-dark-text-primary mb-2">
@@ -307,25 +339,25 @@ function LaunchJob() {
           </>
         )}
 
-        {/* Hydra Config (Placeholder) */}
+        {/* Hydra Config */}
         <div className="border-t border-dark-border pt-6">
           <h3 className="text-lg font-medium text-dark-text-primary mb-3">
             Hydra Configuration
           </h3>
-          <div className="text-sm text-dark-text-secondary bg-dark-bg p-4 rounded-md border border-dark-border">
-            Hydra config overrides will be implemented in Phase 2.
-            For now, default configs will be used.
-          </div>
+          <HydraConfigForm
+            projectId={projectId}
+            onConfigChange={handleHydraConfigChange}
+          />
         </div>
 
         {/* Submit Button */}
         <div className="flex gap-3">
           <button
             type="submit"
-            disabled={submitting || !formData.cluster}
+            disabled={previewLoading || !formData.cluster}
             className="flex-1 bg-accent-green hover:bg-accent-green-hover disabled:bg-dark-border disabled:text-dark-text-muted text-white px-6 py-3 rounded-md font-medium transition-colors"
           >
-            {submitting ? 'Submitting...' : 'Submit Job'}
+            {previewLoading ? 'Loading Preview...' : 'Preview & Submit Job'}
           </button>
           <button
             type="button"
@@ -336,6 +368,16 @@ function LaunchJob() {
           </button>
         </div>
       </form>
+
+      {/* Preview Modal */}
+      {showPreview && (
+        <ScriptPreviewModal
+          script={previewScript}
+          onClose={() => setShowPreview(false)}
+          onConfirm={handleConfirmSubmit}
+          isSubmitting={submitting}
+        />
+      )}
     </div>
   )
 }

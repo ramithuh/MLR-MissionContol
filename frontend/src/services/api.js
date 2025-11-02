@@ -52,6 +52,11 @@ export const createJob = async (jobData) => {
   return response.data
 }
 
+export const previewJob = async (jobData) => {
+  const response = await api.post('/jobs/preview', jobData)
+  return response.data
+}
+
 export const getJob = async (jobId) => {
   const response = await api.get(`/jobs/${jobId}`)
   return response.data

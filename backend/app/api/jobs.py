@@ -48,6 +48,7 @@ class JobResponse(BaseModel):
     hydra_overrides: Dict[str, Any] | None
     slurm_job_id: str | None
     slurm_status: str | None
+    slurm_script: str | None
     wandb_run_url: str | None
     submitted_at: datetime
     updated_at: datetime
@@ -56,7 +57,47 @@ class JobResponse(BaseModel):
         from_attributes = True
 
 
-# Helper function
+# Helper functions
+def generate_slurm_script_for_job(job: Job, project: Project, cluster: dict) -> str:
+    """
+    Generate SLURM script for a job without submitting it.
+
+    Returns:
+        The generated SLURM script content
+    """
+    # Load project configuration
+    project_config = ProjectConfig(project.local_path)
+
+    # Generate SLURM script
+    generator = SlurmScriptGenerator()
+
+    # Build python command using project's train script
+    python_command = generator.build_python_command(
+        script_path=project_config.train_script,
+        hydra_overrides=job.hydra_overrides,
+        num_nodes=job.num_nodes
+    )
+
+    # Generate script with project's conda env (overrides cluster-level setting)
+    conda_env = project_config.conda_env or cluster.get('conda_env')
+
+    script_content = generator.generate_script(
+        job_name=job.name,
+        partition=job.partition,
+        num_nodes=job.num_nodes,
+        gpus_per_node=job.gpus_per_node,
+        repo_url=project.repo_url,
+        commit_sha=job.commit_sha,
+        workspace_dir=cluster['workspace'],
+        python_command=python_command,
+        gpu_type=job.gpu_type,
+        output_file=f"{cluster['workspace']}/logs/{job.name}-%j.out",
+        conda_env=conda_env
+    )
+
+    return script_content
+
+
 def submit_slurm_job_sync(job_id: str, db: Session):
     """
     Submit a SLURM job to the cluster.
@@ -110,35 +151,12 @@ def submit_slurm_job_sync(job_id: str, db: Session):
         return
 
     try:
-        # Load project configuration
-        project_config = ProjectConfig(project.local_path)
-
         # Generate SLURM script
-        generator = SlurmScriptGenerator()
+        script_content = generate_slurm_script_for_job(job, project, cluster)
 
-        # Build python command using project's train script
-        python_command = generator.build_python_command(
-            script_path=project_config.train_script,
-            hydra_overrides=job.hydra_overrides,
-            num_nodes=job.num_nodes
-        )
-
-        # Generate script with project's conda env (overrides cluster-level setting)
-        conda_env = project_config.conda_env or cluster.get('conda_env')
-
-        script_content = generator.generate_script(
-            job_name=job.name,
-            partition=job.partition,
-            num_nodes=job.num_nodes,
-            gpus_per_node=job.gpus_per_node,
-            repo_url=project.repo_url,
-            commit_sha=job.commit_sha,
-            workspace_dir=cluster['workspace'],
-            python_command=python_command,
-            gpu_type=job.gpu_type,
-            output_file=f"{cluster['workspace']}/logs/{job.name}-%j.out",
-            conda_env=conda_env  # Project-level or cluster-level conda env
-        )
+        # Save script to database
+        job.slurm_script = script_content
+        db.commit()
 
         logger.info(f"Generated SLURM script for job {job.name}")
 
@@ -187,6 +205,64 @@ def submit_slurm_job_sync(job_id: str, db: Session):
         logger.error(f"Error submitting job {job.name}: {e}")
         job.slurm_status = "FAILED"
         db.commit()
+
+
+@router.post("/preview", response_model=dict)
+async def preview_job(
+    job_data: JobCreate,
+    db: Session = Depends(get_db)
+):
+    """
+    Preview the SLURM script that would be generated for a job without submitting it.
+
+    Returns:
+        Dictionary with 'script' key containing the generated SLURM script
+    """
+    # Validate project exists
+    project = db.query(Project).filter(Project.id == job_data.project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Validate project has remote URL
+    if not project.repo_url:
+        raise HTTPException(
+            status_code=400,
+            detail="Project has no remote repository URL. Push your code first."
+        )
+
+    # Get cluster config
+    try:
+        with open(settings.clusters_config_path, 'r') as f:
+            config = yaml.safe_load(f)
+            clusters = {c['name']: c for c in config.get('clusters', [])}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reading cluster config: {str(e)}")
+
+    if job_data.cluster not in clusters:
+        raise HTTPException(status_code=404, detail=f"Cluster '{job_data.cluster}' not found")
+
+    cluster = clusters[job_data.cluster]
+
+    # Create temporary job object (not saved to DB)
+    temp_job = Job(
+        project_id=job_data.project_id,
+        name=job_data.name,
+        description=job_data.description,
+        commit_sha=project.current_commit,
+        cluster=job_data.cluster,
+        partition=job_data.partition,
+        gpu_type=job_data.gpu_type,
+        num_nodes=job_data.num_nodes,
+        gpus_per_node=job_data.gpus_per_node,
+        hydra_overrides=job_data.hydra_overrides,
+    )
+
+    try:
+        # Generate SLURM script
+        script_content = generate_slurm_script_for_job(temp_job, project, cluster)
+        return {"script": script_content}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating script: {str(e)}")
 
 
 @router.post("/", response_model=JobResponse)
