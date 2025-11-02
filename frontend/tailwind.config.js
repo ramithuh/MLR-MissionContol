@@ -19,9 +19,9 @@ export default {
           }
         },
         accent: {
-          green: '#76B900',
-          'green-hover': '#88cc00',
-          'green-dark': '#5a8f00',
+          green: '#22c55e',      // Tailwind green-500
+          'green-hover': '#4ade80',  // Tailwind green-400
+          'green-dark': '#16a34a',   // Tailwind green-600
         }
       }
     },
