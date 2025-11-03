@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { getProjects, createProject, getJobs } from '../services/api'
+import { getProjects, createProject, getJobs, getClusters } from '../services/api'
+import ClusterConnectionCard from '../components/ClusterConnectionCard'
 
 function Dashboard() {
   const [projects, setProjects] = useState([])
   const [jobs, setJobs] = useState([])
+  const [clusters, setClusters] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAddProject, setShowAddProject] = useState(false)
   const [newProjectPath, setNewProjectPath] = useState('')
@@ -17,12 +19,14 @@ function Dashboard() {
   const fetchData = async () => {
     try {
       setLoading(true)
-      const [projectsData, jobsData] = await Promise.all([
+      const [projectsData, jobsData, clustersData] = await Promise.all([
         getProjects(),
-        getJobs()
+        getJobs(),
+        getClusters()
       ])
       setProjects(projectsData)
       setJobs(jobsData)
+      setClusters(clustersData)
     } catch (error) {
       console.error('Error fetching data:', error)
       toast.error('Failed to load dashboard data')
@@ -55,6 +59,20 @@ function Dashboard() {
 
   return (
     <div className="px-4 py-6">
+      {/* Cluster Connection Status */}
+      {clusters.some(c => c.requires_vpn || c.requires_manual_auth) && (
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-dark-text-primary mb-4">Cluster Connections</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {clusters
+              .filter(c => c.requires_vpn || c.requires_manual_auth)
+              .map((cluster) => (
+                <ClusterConnectionCard key={cluster.name} cluster={cluster} />
+              ))}
+          </div>
+        </div>
+      )}
+
       {/* Projects Section */}
       <div className="mb-8">
         <div className="flex justify-between items-center mb-4">
@@ -173,16 +191,23 @@ function Dashboard() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">
                       {job.cluster}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        job.slurm_status === 'RUNNING' ? 'bg-accent-green/20 text-accent-green' :
-                        job.slurm_status === 'PENDING' ? 'bg-yellow-900/20 text-yellow-400' :
-                        job.slurm_status === 'COMPLETED' ? 'bg-blue-900/20 text-blue-400' :
-                        job.slurm_status === 'FAILED' ? 'bg-red-900/20 text-red-400' :
-                        'bg-dark-border text-dark-text-muted'
-                      }`}>
-                        {job.slurm_status || 'UNKNOWN'}
-                      </span>
+                    <td className="px-6 py-4">
+                      <div>
+                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          job.slurm_status === 'RUNNING' ? 'bg-accent-green/20 text-accent-green' :
+                          job.slurm_status === 'PENDING' ? 'bg-yellow-900/20 text-yellow-400' :
+                          job.slurm_status === 'COMPLETED' ? 'bg-blue-900/20 text-blue-400' :
+                          job.slurm_status === 'FAILED' ? 'bg-red-900/20 text-red-400' :
+                          'bg-dark-border text-dark-text-muted'
+                        }`}>
+                          {job.slurm_status || 'UNKNOWN'}
+                        </span>
+                        {job.slurm_status === 'FAILED' && job.error_message && (
+                          <div className="mt-1 text-xs text-red-400 max-w-xs break-words">
+                            {job.error_message}
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">
                       {job.num_nodes}x {job.gpus_per_node} {job.gpu_type || 'GPU'}
