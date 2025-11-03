@@ -25,14 +25,17 @@ class Job(Base):
     gpu_type = Column(String, nullable=True)  # e.g., "A6000", "A100"
     num_nodes = Column(Integer, nullable=False, default=1)
     gpus_per_node = Column(Integer, nullable=False, default=1)
+    time_limit = Column(String, nullable=True, default="24:00:00")  # HH:MM:SS format
 
     # Hydra configuration
-    hydra_overrides = Column(JSON, nullable=True)  # Stored as JSON
+    hydra_overrides = Column(JSON, nullable=True)  # Stored as JSON (from dropdown selections)
+    raw_hydra_overrides = Column(Text, nullable=True)  # Raw override string for advanced users
 
     # SLURM job info
     slurm_job_id = Column(String, nullable=True)
     slurm_status = Column(String, nullable=True)  # PENDING, RUNNING, COMPLETED, FAILED
     slurm_script = Column(Text, nullable=True)  # Store the generated SLURM script
+    error_message = Column(Text, nullable=True)  # Capture submission/execution errors
 
     # WandB integration
     wandb_run_url = Column(String, nullable=True)
