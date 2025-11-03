@@ -69,10 +69,19 @@ class HydraParser:
 
                 # Set the actual default from the defaults section
                 if group_name in defaults_map:
-                    group_data["default"] = defaults_map[group_name]
+                    default_value = defaults_map[group_name]
+
+                    # Check if it's a multi-value config (list)
+                    if isinstance(default_value, list):
+                        group_data["default"] = default_value
+                        group_data["multi_value"] = True
+                    else:
+                        group_data["default"] = default_value
+                        group_data["multi_value"] = False
                 else:
                     # Fallback to first option if no default specified
                     group_data["default"] = group_data["options"][0] if group_data["options"] else None
+                    group_data["multi_value"] = False
 
                 result["config_groups"][group_name] = group_data
 
@@ -154,7 +163,8 @@ class HydraParser:
                 "name": group_name,
                 "type": "select",
                 "options": group_data["options"],
-                "default": group_data.get("default")  # Use the actual default from config
+                "default": group_data.get("default"),  # Use the actual default from config
+                "multi_value": group_data.get("multi_value", False)  # Pass multi-value flag to UI
             })
 
         # Extract configurable parameters from main config

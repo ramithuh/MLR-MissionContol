@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import {
   getProject,
+  getProjectConfig,
+  getLastJobConfig,
   getClusters,
   getGPUAvailability,
   getPartitions,
@@ -17,6 +19,7 @@ function LaunchJob() {
   const navigate = useNavigate()
 
   const [project, setProject] = useState(null)
+  const [projectConfig, setProjectConfig] = useState(null)
   const [clusters, setClusters] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -29,6 +32,7 @@ function LaunchJob() {
     gpu_type: '',
     num_nodes: 1,
     gpus_per_node: 1,
+    time_limit: '24:00:00',
   })
 
   const [gpuAvailability, setGpuAvailability] = useState([])
@@ -36,6 +40,7 @@ function LaunchJob() {
   const [loadingResources, setLoadingResources] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [hydraOverrides, setHydraOverrides] = useState({})
+  const [rawHydraOverrides, setRawHydraOverrides] = useState('')
   const [showPreview, setShowPreview] = useState(false)
   const [previewScript, setPreviewScript] = useState('')
   const [previewLoading, setPreviewLoading] = useState(false)
@@ -53,18 +58,44 @@ function LaunchJob() {
   const fetchInitialData = async () => {
     try {
       setLoading(true)
-      const [projectData, clustersData] = await Promise.all([
+      const [projectData, projectConfigData, clustersData, lastJobData] = await Promise.all([
         getProject(projectId),
-        getClusters()
+        getProjectConfig(projectId),
+        getClusters(),
+        getLastJobConfig(projectId)
       ])
       setProject(projectData)
+      setProjectConfig(projectConfigData)
       setClusters(clustersData)
 
       // Set default job name
-      setFormData(prev => ({
-        ...prev,
-        name: `${projectData.name}-${Date.now()}`
-      }))
+      const defaultName = `${projectData.name}-${Date.now()}`
+
+      // If we have cached config from a previous job, populate the form
+      if (lastJobData.success && lastJobData.config) {
+        const cachedConfig = lastJobData.config
+        setFormData(prev => ({
+          ...prev,
+          name: defaultName,
+          cluster: cachedConfig.cluster_name || prev.cluster,
+          partition: cachedConfig.partition || prev.partition,
+          gpu_type: cachedConfig.gpu_type || prev.gpu_type,
+          num_nodes: cachedConfig.num_nodes || prev.num_nodes,
+          gpus_per_node: cachedConfig.gpus_per_node || prev.gpus_per_node,
+          time_limit: cachedConfig.time_limit || prev.time_limit,
+        }))
+
+        // Populate Hydra overrides
+        setHydraOverrides(cachedConfig.hydra_overrides || {})
+        setRawHydraOverrides(cachedConfig.raw_hydra_overrides || '')
+
+        toast.success('Form populated with previous job configuration', { duration: 3000 })
+      } else {
+        setFormData(prev => ({
+          ...prev,
+          name: defaultName
+        }))
+      }
     } catch (error) {
       console.error('Error fetching data:', error)
       toast.error('Failed to load project data')
@@ -120,7 +151,8 @@ function LaunchJob() {
       const jobData = {
         project_id: projectId,
         ...formData,
-        hydra_overrides: Object.keys(hydraOverrides).length > 0 ? hydraOverrides : null
+        hydra_overrides: Object.keys(hydraOverrides).length > 0 ? hydraOverrides : null,
+        raw_hydra_overrides: rawHydraOverrides.trim() || null
       }
       const result = await previewJob(jobData)
       setPreviewScript(result.script)
@@ -139,7 +171,8 @@ function LaunchJob() {
       const jobData = {
         project_id: projectId,
         ...formData,
-        hydra_overrides: Object.keys(hydraOverrides).length > 0 ? hydraOverrides : null
+        hydra_overrides: Object.keys(hydraOverrides).length > 0 ? hydraOverrides : null,
+        raw_hydra_overrides: rawHydraOverrides.trim() || null
       }
       await createJob(jobData)
       toast.success('Job submitted successfully!')
@@ -173,6 +206,54 @@ function LaunchJob() {
           <div><span className="font-medium">Commit:</span> {project?.current_commit}</div>
         </div>
       </div>
+
+      {/* Project Configuration Info */}
+      {projectConfig && (
+        <div className="bg-dark-card rounded-lg border border-dark-border p-6 mb-6">
+          <div className="flex items-start justify-between mb-3">
+            <h2 className="text-lg font-medium text-dark-text-primary">Project Configuration</h2>
+            {projectConfig.exists ? (
+              <span className="text-xs px-2 py-1 bg-green-900/20 text-green-400 rounded">
+                ✓ Config Found
+              </span>
+            ) : (
+              <span className="text-xs px-2 py-1 bg-yellow-900/20 text-yellow-400 rounded">
+                ! Using Defaults
+              </span>
+            )}
+          </div>
+
+          <div className="space-y-3 text-sm">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <div className="text-dark-text-muted mb-1">Training Script</div>
+                <div className="text-dark-text-primary font-mono bg-dark-bg px-2 py-1 rounded">
+                  {projectConfig.train_script || 'train.py'}
+                </div>
+              </div>
+              <div>
+                <div className="text-dark-text-muted mb-1">Conda Environment</div>
+                <div className="text-dark-text-primary font-mono bg-dark-bg px-2 py-1 rounded">
+                  {projectConfig.conda_env || <span className="text-dark-text-muted italic">cluster default</span>}
+                </div>
+              </div>
+            </div>
+
+            {!projectConfig.exists && (
+              <div className="mt-4 p-3 bg-blue-900/10 border border-blue-700/30 rounded text-xs">
+                <div className="font-medium text-blue-400 mb-1">💡 Customize your project:</div>
+                <div className="text-dark-text-secondary">
+                  Create <code className="text-accent-green">.mlops-config.yaml</code> in your project root:
+                </div>
+                <pre className="mt-2 text-dark-text-primary bg-dark-bg p-2 rounded font-mono overflow-x-auto">
+{`conda_env: "your_env_name"
+train_script: "path/to/train.py"  # e.g., routines/train.py`}
+                </pre>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handlePreview} className="bg-dark-card rounded-lg border border-dark-border p-6 space-y-6">
         {/* Job Name */}
@@ -325,6 +406,26 @@ function LaunchJob() {
                   />
                 </div>
 
+                {/* Time Limit */}
+                <div>
+                  <label className="block text-sm font-medium text-dark-text-primary mb-2">
+                    Time Limit
+                    <span className="text-xs text-dark-text-muted ml-2">(HH:MM:SS or DD-HH:MM:SS)</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="time_limit"
+                    value={formData.time_limit}
+                    onChange={handleInputChange}
+                    placeholder="24:00:00"
+                    required
+                    className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-md text-dark-text-primary placeholder-dark-text-muted focus:outline-none focus:ring-2 focus:ring-accent-green"
+                  />
+                  <div className="mt-1 text-xs text-dark-text-muted">
+                    Examples: 1:00:00 (1 hour), 24:00:00 (24 hours), 7-00:00:00 (7 days)
+                  </div>
+                </div>
+
                 {/* Total Resources Summary */}
                 <div className="bg-accent-green/10 border border-accent-green/30 rounded-md p-4">
                   <div className="text-sm font-medium text-accent-green">
@@ -347,7 +448,38 @@ function LaunchJob() {
           <HydraConfigForm
             projectId={projectId}
             onConfigChange={handleHydraConfigChange}
+            initialValues={hydraOverrides}
           />
+
+          {/* Raw Hydra Overrides */}
+          <div className="mt-6 pt-6 border-t border-dark-border">
+            <label className="block text-sm font-medium text-dark-text-primary mb-2">
+              Raw Hydra Overrides
+              <span className="text-xs text-dark-text-muted ml-2">(Advanced: merged with dropdown selections)</span>
+            </label>
+            <textarea
+              value={rawHydraOverrides}
+              onChange={(e) => setRawHydraOverrides(e.target.value)}
+              placeholder="plinder_path=/net/galaxy/home/koes/ltoft/OMTRA/data/plinder +partial_ckpt=wandb_symlinks/run123/checkpoints/batch_370000.ckpt num_workers=6 trainer.devices=2 model.train_t_dist=beta"
+              rows="4"
+              className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-md text-dark-text-primary placeholder-dark-text-muted focus:outline-none focus:ring-2 focus:ring-accent-green font-mono text-sm"
+            />
+            <div className="mt-2 text-xs text-dark-text-muted space-y-1">
+              <div>Add additional overrides here. These will be <span className="text-accent-green font-medium">merged</span> with dropdown selections. Supports:</div>
+              <ul className="list-disc list-inside ml-2 space-y-0.5">
+                <li><code className="text-accent-green">key=value</code> - set parameter</li>
+                <li><code className="text-accent-green">+key=value</code> - add new parameter</li>
+                <li><code className="text-accent-green">~key</code> - delete parameter</li>
+                <li><code className="text-accent-green">group/option=value</code> - config group selection</li>
+                <li><code className="text-accent-green">nested.key=value</code> - nested config</li>
+              </ul>
+              {rawHydraOverrides && (
+                <div className="mt-2 text-blue-400">
+                  ℹ Raw overrides will be added after dropdown selections (same keys will override)
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Submit Button */}
