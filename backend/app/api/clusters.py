@@ -25,6 +25,18 @@ class ClusterInfo(BaseModel):
     workspace: str
     allowed_partitions: List[str] = []
     allowed_gpu_types: List[str] = []
+    requires_vpn: bool = False
+    requires_manual_auth: bool = False
+    connection_instructions: str | None = None
+    # VPN configuration
+    vpn_protocol: str | None = None  # e.g., "gp" for GlobalProtect
+    vpn_portal: str | None = None    # e.g., "https://portal-palo.pitt.edu"
+    vpn_username: str | None = None  # VPN username
+    vpn_gateway: str | None = None   # Optional: pre-selected gateway
+    # SSH environment
+    use_login_shell: bool = False    # Use 'bash -lc' to load full environment (.bashrc, modules, etc.)
+    # SLURM GPU request style
+    gpu_request_style: str = "gres"  # "gres" (--gres=gpu:TYPE:COUNT) or "constraint" (-C "TYPE" --gres=gpu:COUNT)
 
 
 class GPUAvailability(BaseModel):
@@ -66,6 +78,10 @@ async def get_gpu_availability(cluster_name: str) -> Dict[str, Any]:
     3. Runs check_gpu_availability.py --json
     4. Parses JSON output, caches it, and returns GPU availability data
     """
+    # TODO: For multi-user deployments, add request deduplication to prevent
+    # concurrent SSH connections to the same cluster when multiple users refresh
+    # simultaneously before cache is populated. Could use asyncio.Lock per cluster.
+
     # Check cache first
     if cluster_name in gpu_cache:
         cached_data, cached_time = gpu_cache[cluster_name]
@@ -106,8 +122,11 @@ async def get_gpu_availability(cluster_name: str) -> Dict[str, Any]:
         with ssh:
             # Run the GPU availability script with --json flag
             # Assumes script is in home directory on cluster
+            # Use login shell if cluster requires it (for environment setup)
+            use_login = cluster.get('use_login_shell', False)
             stdout, stderr, exit_code = ssh.execute_command(
-                "python3 ~/check_gpu_availability.py --json"
+                "python3 ~/check_gpu_availability.py --json",
+                use_login_shell=use_login
             )
 
             if exit_code != 0:
@@ -191,7 +210,11 @@ async def get_partitions(cluster_name: str) -> List[str]:
         )
 
         with ssh:
-            stdout, stderr, exit_code = ssh.execute_command("sinfo -o %P --noheader")
+            use_login = cluster.get('use_login_shell', False)
+            stdout, stderr, exit_code = ssh.execute_command(
+                "sinfo -o %P --noheader",
+                use_login_shell=use_login
+            )
 
             if exit_code != 0:
                 raise HTTPException(
@@ -250,7 +273,11 @@ async def test_cluster_connection(cluster_name: str):
 
         with ssh:
             # Run simple test command
-            stdout, stderr, exit_code = ssh.execute_command("echo 'MLOps Mission Control connection test' && hostname")
+            use_login = cluster.get('use_login_shell', False)
+            stdout, stderr, exit_code = ssh.execute_command(
+                "echo 'MLOps Mission Control connection test' && hostname",
+                use_login_shell=use_login
+            )
 
             if exit_code == 0:
                 return {

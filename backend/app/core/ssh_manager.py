@@ -40,18 +40,25 @@ class SSHManager:
             logger.error(f"Failed to connect to {self.host}: {e}")
             raise
 
-    def execute_command(self, command: str) -> Tuple[str, str, int]:
+    def execute_command(self, command: str, use_login_shell: bool = False) -> Tuple[str, str, int]:
         """
         Execute command on remote host.
 
         Args:
             command: Shell command to execute
+            use_login_shell: If True, wrap command in 'bash -lc' to load full environment
 
         Returns:
             Tuple of (stdout, stderr, exit_code)
         """
         if not self.client:
             self.connect()
+
+        # Wrap in login shell if requested (loads .bash_profile, modules, etc.)
+        if use_login_shell:
+            # Escape single quotes in the command
+            escaped_command = command.replace("'", "'\\''")
+            command = f"bash -lc '{escaped_command}'"
 
         logger.debug(f"Executing: {command}")
         stdin, stdout, stderr = self.client.exec_command(command)

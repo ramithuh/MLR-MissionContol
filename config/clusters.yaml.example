@@ -8,6 +8,11 @@ clusters:
     # This can be overridden by project-level .mlops-config.yaml
     # conda_env: "pytorch"
 
+    # Optional: GPU request style for SLURM
+    # "gres": --gres=gpu:TYPE:COUNT (default, works on most clusters)
+    # "constraint": -C "TYPE" --gres=gpu:COUNT (for clusters like CSB that use constraints)
+    # gpu_request_style: "gres"
+
     # Optional: Restrict to specific partitions
     # If not specified, all partitions from sinfo are shown
     allowed_partitions:
@@ -22,13 +27,45 @@ clusters:
       - "A100_80GB"
       - "H100"
 
-  # Add more clusters as needed:
-  # - name: "cluster-2"
-  #   host: "username@cluster2.edu"
-  #   ssh_key_path: "~/.ssh/id_rsa"
-  #   workspace: "/scratch/username/mlops-jobs"
-  #   allowed_partitions:
-  #     - "preempt"
-  #   allowed_gpu_types:
-  #     - "V100"
-  #     - "RTX3090"
+  # Example: Cluster requiring VPN (e.g., GlobalProtect)
+  # - name: "vpn-cluster"
+  #   host: "username@cluster.company.com"
+  #   ssh_key_path: "~/.ssh/id_ed25519"
+  #   workspace: "/home/username/mlops-jobs"
+  #   requires_vpn: true
+  #
+  #   # VPN configuration for automated command generation
+  #   vpn_protocol: "gp"  # gp = GlobalProtect, pulse = Pulse Secure, etc.
+  #   vpn_portal: "https://portal-palo.pitt.edu"
+  #   vpn_username: "your-username"
+  #   vpn_gateway: "BYOD-GATEWAY-CL"  # Optional: pre-select gateway
+  #
+  #   # SSH environment setup
+  #   # Set to true if SLURM commands need environment loading (modules, PATH, etc.)
+  #   # This uses 'bash -lc' to load .bashrc/.bash_profile
+  #   use_login_shell: true
+  #
+  #   connection_instructions: |
+  #     1. Click "Copy VPN Command" button below
+  #     2. Paste command in terminal (requires sudo)
+  #     3. Enter your password when prompted
+  #     4. Complete Duo 2FA if required
+  #     5. Select gateway if prompted
+  #     6. VPN connection persists for ~6 hours
+
+  # Example: Cluster requiring password + Duo (no VPN)
+  # - name: "duo-cluster"
+  #   host: "username@cluster.edu"
+  #   ssh_key_path: "~/.ssh/id_ed25519"  # May not be used if password required
+  #   workspace: "/home/username/mlops-jobs"
+  #   requires_manual_auth: true
+  #   connection_instructions: |
+  #     1. Open terminal and run: ssh username@cluster.edu
+  #     2. Enter your password when prompted
+  #     3. Complete Duo 2FA (push/code)
+  #     4. Keep terminal open - connection persists via ControlMaster
+  #     5. Setup ControlMaster in ~/.ssh/config:
+  #        Host cluster.edu
+  #          ControlMaster auto
+  #          ControlPath ~/.ssh/sockets/%r@%h-%p
+  #          ControlPersist 6h
