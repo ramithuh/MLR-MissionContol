@@ -21,7 +21,6 @@ from collections import defaultdict
 from tabulate import tabulate
 import textwrap
 
-TYPE_ORDER = ["1080Ti", "A4500", "6000Ada", "A6000", "L40", "L40S", "A100_40GB", "A100_80GB", "H100", "gpu"]
 WRAP_WIDTH = 55
 EXCLUDE_STATES = {"DRAIN", "DRAINED", "DOWN"}
 
@@ -30,7 +29,7 @@ def parse_gres(gres: str) -> dict[str, int]:
     if not gres or gres == "N/A":
         return {}
     gpus = defaultdict(int)
-    for match in re.finditer(r'(?:gres/gpu|gpu):?([A-Za-z0-9_]+)?[:=]?(\d+)?', gres):
+    for match in re.finditer(r'(?:gres/gpu|gpu):?([A-Za-z0-9_-]+)?[:=]?(\d+)?', gres):
         model, count = match.groups()
         gpus[model.lower() if model else 'gpu'] += int(count or 1)
     return dict(gpus)
@@ -62,6 +61,26 @@ def get_gpu_data():
         gres = parse_gres(re.search(r'Gres=(.*)', node_block).group(1)) if re.search(r'Gres=(.*)', node_block) else {}
         alloc = parse_gres(re.search(r'AllocTRES=(.*)', node_block).group(1)) if re.search(r'AllocTRES=(.*)', node_block) else {}
 
+        # Handle generic 'gpu' allocations
+        if 'gpu' in alloc:
+            generic_count = alloc['gpu']
+            # Check if we have specific model allocations
+            specific_models = {k: v for k, v in alloc.items() if k != 'gpu'}
+
+            if specific_models:
+                # Babel case: has both generic and specific - remove generic (redundant)
+                del alloc['gpu']
+            elif len(gres) == 1:
+                # PSC case: only generic, map to the node's single GPU type
+                model = list(gres.keys())[0]
+                alloc[model] = generic_count
+                del alloc['gpu']
+            # If multiple GPU types and only generic count, distribute proportionally
+            elif len(gres) > 1:
+                for model, total in gres.items():
+                    alloc[model] = alloc.get(model, 0) + (generic_count * total // sum(gres.values()))
+                del alloc['gpu']
+
         for model, count in gres.items():
             total_gpus[model] += count
             free = count - alloc.get(model, 0)
@@ -84,35 +103,46 @@ def get_gpu_data():
 def print_table(total_gpus, free_gpus, total_free, pending_gpus):
     """Print GPU availability in human-readable table format."""
     table = []
-    for model in TYPE_ORDER:
-        if model.lower() in total_gpus or model.lower() in pending_gpus:
-            total = total_gpus.get(model.lower(), 0)
-            free = sum(int(n.split(':')[1]) for n in free_gpus.get(model.lower(), []))
-            pending = pending_gpus.get(model.lower(), 0)
-            nodes = " ".join(sorted(free_gpus.get(model.lower(), []))) or "None"
-            wrapped_nodes = "\n".join(textwrap.wrap(nodes, width=WRAP_WIDTH))
-            table.append([model, total, free, pending, wrapped_nodes])
+    # Dynamically find all unique GPU models from the parsed data
+    all_models = sorted(set(total_gpus.keys()) | set(pending_gpus.keys()))
+
+    for model_lower in all_models:
+        total = total_gpus.get(model_lower, 0)
+        free = sum(int(n.split(':')[1]) for n in free_gpus.get(model_lower, []))
+        pending = pending_gpus.get(model_lower, 0)
+        nodes = " ".join(sorted(free_gpus.get(model_lower, []))) or "None"
+        wrapped_nodes = "\n".join(textwrap.wrap(nodes, width=WRAP_WIDTH))
+
+        # Use the found model name, capitalized for display
+        display_model = model_lower.upper()
+        table.append([display_model, total, free, pending, wrapped_nodes])
+
     print(f"Total free GPUs: {total_free}")
     print(tabulate(table, headers=["Model", "Total", "Free", "Pending", "Nodes with Free GPUs"], tablefmt="grid"))
 
 def print_json(total_gpus, free_gpus, total_free, pending_gpus):
     """Print GPU availability in JSON format for API consumption."""
     gpus = []
-    for model in TYPE_ORDER:
-        if model.lower() in total_gpus or model.lower() in pending_gpus:
-            total = total_gpus.get(model.lower(), 0)
-            free_count = sum(int(n.split(':')[1]) for n in free_gpus.get(model.lower(), []))
-            pending = pending_gpus.get(model.lower(), 0)
-            in_use = total - free_count
+    # Dynamically find all unique GPU models from the parsed data
+    all_models = sorted(set(total_gpus.keys()) | set(pending_gpus.keys()))
 
-            gpus.append({
-                "gpu_type": model,
-                "total": total,
-                "available": free_count,
-                "in_use": in_use,
-                "pending": pending,
-                "nodes_with_free": free_gpus.get(model.lower(), [])
-            })
+    for model_lower in all_models:
+        total = total_gpus.get(model_lower, 0)
+        free_count = sum(int(n.split(':')[1]) for n in free_gpus.get(model_lower, []))
+        pending = pending_gpus.get(model_lower, 0)
+        in_use = total - free_count
+
+        # Use the found model name, capitalized for display
+        display_model = model_lower.upper()
+
+        gpus.append({
+            "gpu_type": display_model,
+            "total": total,
+            "available": free_count,
+            "in_use": in_use,
+            "pending": pending,
+            "nodes_with_free": free_gpus.get(model_lower, [])
+        })
 
     output = {
         "total_free_gpus": total_free,
