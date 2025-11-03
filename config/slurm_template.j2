@@ -3,7 +3,12 @@
 #SBATCH --partition={{ partition }}
 #SBATCH --nodes={{ num_nodes }}
 #SBATCH --ntasks-per-node={{ gpus_per_node }}
+{% if gpu_request_style == 'constraint' and gpu_type %}
+#SBATCH -C "{{ gpu_type }}"
+#SBATCH --gres=gpu:{{ gpus_per_node }}
+{% else %}
 #SBATCH --gres=gpu:{% if gpu_type %}{{ gpu_type }}:{% endif %}{{ gpus_per_node }}
+{% endif %}
 #SBATCH --time={{ time_limit }}
 #SBATCH --output={{ output_file }}
 #SBATCH --error={{ output_file }}
@@ -43,6 +48,21 @@ git checkout {{ commit_sha }}
 echo "Activating conda environment: {{ conda_env }}"
 source $(conda info --base)/etc/profile.d/conda.sh
 conda activate {{ conda_env }}
+{% endif %}
+
+{% if install_editable %}
+# Install package in editable mode
+echo "========================================="
+echo "Installing package in editable mode..."
+{% if package_name %}
+# Uninstall existing package to avoid conflicts
+echo "Uninstalling existing package: {{ package_name }}"
+pip uninstall -y {{ package_name }} 2>/dev/null || true
+{% endif %}
+echo "Installing: pip install -e ."
+pip install -e .
+echo "Package installation complete"
+echo "========================================="
 {% endif %}
 
 # Print environment info

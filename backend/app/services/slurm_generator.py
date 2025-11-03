@@ -38,8 +38,11 @@ class SlurmScriptGenerator:
         workspace_dir: str,
         python_command: str,
         gpu_type: str | None = None,
+        gpu_request_style: str = "gres",
         time_limit: str = "24:00:00",
         output_file: str | None = None,
+        install_editable: bool = False,
+        package_name: str | None = None,
         **extra_vars
     ) -> str:
         """
@@ -55,8 +58,13 @@ class SlurmScriptGenerator:
             workspace_dir: Remote workspace directory
             python_command: Python training command to run
             gpu_type: GPU type constraint (e.g., "A6000")
+            gpu_request_style: GPU request style - "gres" or "constraint"
+                              "gres": --gres=gpu:TYPE:COUNT (default)
+                              "constraint": -C "TYPE" --gres=gpu:COUNT (for clusters like CSB)
             time_limit: Wall time limit
             output_file: Path for SLURM output file
+            install_editable: Whether to install package in editable mode (pip install -e .)
+            package_name: Package name to uninstall before installing (optional)
             **extra_vars: Additional template variables
 
         Returns:
@@ -73,12 +81,15 @@ class SlurmScriptGenerator:
             "gpus_per_node": gpus_per_node,
             "total_gpus": total_gpus,
             "gpu_type": gpu_type,
+            "gpu_request_style": gpu_request_style,
             "time_limit": time_limit,
             "output_file": output_file or f"slurm-%j.out",
             "repo_url": repo_url,
             "commit_sha": commit_sha,
             "workspace_dir": workspace_dir,
             "python_command": python_command,
+            "install_editable": install_editable,
+            "package_name": package_name,
             **extra_vars
         }
 
@@ -90,28 +101,38 @@ class SlurmScriptGenerator:
         self,
         script_path: str,
         hydra_overrides: Dict[str, Any] | None = None,
-        num_nodes: int = 1
+        raw_hydra_overrides: str | None = None,
+        num_nodes: int = 1,
+        gpus_per_node: int = 1
     ) -> str:
         """
         Build the Python training command with Hydra overrides.
 
         Args:
             script_path: Path to training script (e.g., "train.py")
-            hydra_overrides: Dictionary of Hydra config overrides
+            hydra_overrides: Dictionary of Hydra config overrides (from dropdown UI)
+            raw_hydra_overrides: Raw string of Hydra overrides (merged with dropdown selections)
             num_nodes: Number of nodes (for distributed training setup)
+            gpus_per_node: Number of GPUs per node
 
         Returns:
             Complete python command string
         """
         cmd = f"python3 {script_path}"
 
-        # Add Hydra overrides
+        # Add structured overrides from dropdowns first
         if hydra_overrides:
             for key, value in hydra_overrides.items():
                 cmd += f" {key}={value}"
 
-        # Add distributed training flags if multi-node
-        if num_nodes > 1:
+        # Then add raw overrides (will override dropdown selections if same key)
+        # This allows users to use both dropdowns AND add extra overrides
+        if raw_hydra_overrides:
+            cmd += f" {raw_hydra_overrides.strip()}"
+
+        # Use srun for multi-GPU (even single node) or multi-node
+        # This properly initializes SLURM's task distribution for DDP
+        if num_nodes > 1 or gpus_per_node > 1:
             cmd = f"srun {cmd}"
 
         return cmd
