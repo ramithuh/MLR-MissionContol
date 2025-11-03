@@ -32,7 +32,9 @@ class ProjectConfig:
         self._config = {
             "conda_env": None,
             "train_script": "train.py",
-            "default_overrides": {}
+            "default_overrides": {},
+            "install_editable": False,
+            "package_name": None  # If None, will use project name
         }
 
         # Load from file if exists
@@ -61,6 +63,16 @@ class ProjectConfig:
     def default_overrides(self) -> Dict[str, Any]:
         """Get default Hydra overrides."""
         return self.load().get("default_overrides", {})
+
+    @property
+    def install_editable(self) -> bool:
+        """Check if package should be installed in editable mode."""
+        return self.load().get("install_editable", False)
+
+    @property
+    def package_name(self) -> Optional[str]:
+        """Get package name for pip install/uninstall."""
+        return self.load().get("package_name")
 
     def exists(self) -> bool:
         """Check if project config file exists."""
