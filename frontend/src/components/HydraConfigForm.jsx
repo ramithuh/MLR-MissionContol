@@ -4,15 +4,20 @@ import { useState, useEffect } from 'react'
  * Dynamic Hydra configuration form component.
  * Generates form fields based on parsed Hydra config schema.
  */
-function HydraConfigForm({ projectId, onConfigChange }) {
+function HydraConfigForm({ projectId, onConfigChange, initialValues = {} }) {
   const [configSchema, setConfigSchema] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [configValues, setConfigValues] = useState({})
+  const [configValues, setConfigValues] = useState(initialValues)
 
   useEffect(() => {
     fetchHydraConfig()
   }, [projectId])
+
+  // Update config values when initialValues prop changes (e.g., from cached job)
+  useEffect(() => {
+    setConfigValues(initialValues)
+  }, [initialValues])
 
   const fetchHydraConfig = async () => {
     try {
@@ -28,10 +33,10 @@ function HydraConfigForm({ projectId, onConfigChange }) {
       } else {
         setConfigSchema(data.ui_schema)
 
-        // Don't initialize any config values - we only send what the user explicitly changes
+        // Use initial values if provided (from cached previous job), otherwise start empty
         // This prevents sending overrides for groups not in Hydra's defaults list
-        setConfigValues({})
-        onConfigChange({})
+        setConfigValues(initialValues)
+        onConfigChange(initialValues)
       }
     } catch (err) {
       console.error('Error fetching Hydra config:', err)
@@ -119,6 +124,29 @@ function HydraConfigForm({ projectId, onConfigChange }) {
               const currentValue = configValues[group.name] || group.default || ''
               const isModified = configValues.hasOwnProperty(group.name)
 
+              // Multi-value groups (lists) - show as read-only
+              if (group.multi_value) {
+                const defaultValues = Array.isArray(group.default) ? group.default : [group.default]
+                return (
+                  <div key={group.name} className="bg-blue-900/10 border border-blue-700/30 rounded-md p-3">
+                    <label className="block text-xs font-medium text-blue-400 mb-1.5 capitalize">
+                      {group.name} (multiple)
+                    </label>
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {defaultValues.map((val, idx) => (
+                        <span key={idx} className="px-2 py-1 bg-blue-900/20 text-blue-300 text-xs rounded">
+                          {val}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="text-xs text-dark-text-muted">
+                      ℹ Multi-value groups can only be changed via raw overrides
+                    </div>
+                  </div>
+                )
+              }
+
+              // Single-value groups - show as dropdown
               return (
                 <div key={group.name} className={`${isModified ? 'ring-1 ring-accent-green rounded-md p-2 -m-2' : ''}`}>
                   <label className="block text-xs font-medium text-dark-text-secondary mb-1.5 capitalize">
