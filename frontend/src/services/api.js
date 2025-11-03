@@ -35,6 +35,16 @@ export const getHydraConfig = async (projectId) => {
   return response.data
 }
 
+export const getProjectConfig = async (projectId) => {
+  const response = await api.get(`/projects/${projectId}/config`)
+  return response.data
+}
+
+export const getLastJobConfig = async (projectId) => {
+  const response = await api.get(`/projects/${projectId}/last-job-config`)
+  return response.data
+}
+
 export const deleteProject = async (projectId) => {
   const response = await api.delete(`/projects/${projectId}`)
   return response.data
