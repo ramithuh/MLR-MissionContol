@@ -6,6 +6,7 @@ from datetime import datetime
 
 from app.core.database import get_db
 from app.models.project import Project
+from app.models.job import Job
 from app.services.git_service import GitService
 
 router = APIRouter()
@@ -141,6 +142,70 @@ async def get_hydra_config(project_id: str, db: Session = Depends(get_db)):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error parsing Hydra config: {str(e)}")
+
+
+@router.get("/{project_id}/config")
+async def get_project_config(project_id: str, db: Session = Depends(get_db)):
+    """
+    Get project-specific configuration from .mlops-config.yaml
+    """
+    from app.services.project_config import ProjectConfig
+
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    config = ProjectConfig(project.local_path)
+
+    return {
+        "exists": config.exists(),
+        "conda_env": config.conda_env,
+        "train_script": config.train_script,
+        "default_overrides": config.default_overrides,
+        "install_editable": config.install_editable,
+        "package_name": config.package_name,
+        "config_file_path": str(config.config_file)
+    }
+
+
+@router.get("/{project_id}/last-job-config")
+async def get_last_job_config(project_id: str, db: Session = Depends(get_db)):
+    """
+    Get the configuration from the most recently submitted job for this project.
+    Used to pre-populate the launch form with previous run settings.
+    """
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Get most recent job for this project
+    last_job = (
+        db.query(Job)
+        .filter(Job.project_id == project_id)
+        .order_by(Job.submitted_at.desc())
+        .first()
+    )
+
+    if not last_job:
+        return {
+            "success": False,
+            "message": "No previous jobs found"
+        }
+
+    # Return the cached configuration
+    return {
+        "success": True,
+        "config": {
+            "cluster_name": last_job.cluster,
+            "partition": last_job.partition,
+            "num_nodes": last_job.num_nodes,
+            "gpus_per_node": last_job.gpus_per_node,
+            "gpu_type": last_job.gpu_type,
+            "time_limit": last_job.time_limit,
+            "hydra_overrides": last_job.hydra_overrides or {},
+            "raw_hydra_overrides": last_job.raw_hydra_overrides or ""
+        }
+    }
 
 
 @router.delete("/{project_id}")
