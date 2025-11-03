@@ -31,7 +31,9 @@ class JobCreate(BaseModel):
     gpu_type: str | None = None
     num_nodes: int = 1
     gpus_per_node: int = 1
+    time_limit: str = "24:00:00"  # HH:MM:SS or HH:MM format
     hydra_overrides: Dict[str, Any] | None = None
+    raw_hydra_overrides: str | None = None  # Raw override string (takes precedence over hydra_overrides)
 
 
 class JobResponse(BaseModel):
@@ -45,10 +47,13 @@ class JobResponse(BaseModel):
     gpu_type: str | None
     num_nodes: int
     gpus_per_node: int
+    time_limit: str | None
     hydra_overrides: Dict[str, Any] | None
+    raw_hydra_overrides: str | None
     slurm_job_id: str | None
     slurm_status: str | None
     slurm_script: str | None
+    error_message: str | None
     wandb_run_url: str | None
     submitted_at: datetime
     updated_at: datetime
@@ -58,6 +63,42 @@ class JobResponse(BaseModel):
 
 
 # Helper functions
+def convert_https_to_ssh_url(url: str) -> str:
+    """
+    Convert HTTPS Git URL to SSH URL for non-interactive cloning.
+
+    Examples:
+        https://github.com/user/repo.git -> git@github.com:user/repo.git
+        https://github.com/user/repo -> git@github.com:user/repo.git
+        git@github.com:user/repo.git -> git@github.com:user/repo.git (unchanged)
+    """
+    if not url:
+        return url
+
+    # Already SSH format
+    if url.startswith('git@'):
+        return url
+
+    # Convert HTTPS to SSH
+    if url.startswith('https://'):
+        # Remove https://
+        url = url.replace('https://', '')
+
+        # Split domain and path
+        parts = url.split('/', 1)
+        if len(parts) == 2:
+            domain, path = parts
+
+            # Ensure .git suffix
+            if not path.endswith('.git'):
+                path += '.git'
+
+            # Convert to SSH format
+            return f"git@{domain}:{path}"
+
+    return url
+
+
 def generate_slurm_script_for_job(job: Job, project: Project, cluster: dict) -> str:
     """
     Generate SLURM script for a job without submitting it.
@@ -75,24 +116,33 @@ def generate_slurm_script_for_job(job: Job, project: Project, cluster: dict) -> 
     python_command = generator.build_python_command(
         script_path=project_config.train_script,
         hydra_overrides=job.hydra_overrides,
-        num_nodes=job.num_nodes
+        raw_hydra_overrides=job.raw_hydra_overrides,
+        num_nodes=job.num_nodes,
+        gpus_per_node=job.gpus_per_node
     )
 
     # Generate script with project's conda env (overrides cluster-level setting)
     conda_env = project_config.conda_env or cluster.get('conda_env')
+
+    # Convert HTTPS URL to SSH for non-interactive cloning on remote server
+    repo_url_ssh = convert_https_to_ssh_url(project.repo_url)
 
     script_content = generator.generate_script(
         job_name=job.name,
         partition=job.partition,
         num_nodes=job.num_nodes,
         gpus_per_node=job.gpus_per_node,
-        repo_url=project.repo_url,
+        repo_url=repo_url_ssh,
         commit_sha=job.commit_sha,
         workspace_dir=cluster['workspace'],
         python_command=python_command,
         gpu_type=job.gpu_type,
+        gpu_request_style=cluster.get('gpu_request_style', 'gres'),
+        time_limit=job.time_limit or "24:00:00",
         output_file=f"{cluster['workspace']}/logs/{job.name}-%j.out",
-        conda_env=conda_env
+        conda_env=conda_env,
+        install_editable=project_config.install_editable,
+        package_name=project_config.package_name
     )
 
     return script_content
@@ -185,7 +235,8 @@ def submit_slurm_job_sync(job_id: str, db: Session):
             ssh.execute_command(f"chmod +x {remote_script_path}")
 
             # Submit job
-            job_monitor = JobMonitor(ssh)
+            use_login = cluster.get('use_login_shell', False)
+            job_monitor = JobMonitor(ssh, use_login_shell=use_login)
             slurm_job_id, error = job_monitor.submit_job(remote_script_path)
 
             # Clean up local temp file
@@ -194,9 +245,11 @@ def submit_slurm_job_sync(job_id: str, db: Session):
             if slurm_job_id:
                 job.slurm_job_id = slurm_job_id
                 job.slurm_status = "PENDING"
+                job.error_message = None  # Clear any previous errors
                 logger.info(f"Job {job.name} submitted successfully with SLURM ID {slurm_job_id}")
             else:
                 job.slurm_status = "FAILED"
+                job.error_message = f"SLURM submission failed: {error}"
                 logger.error(f"Failed to submit job {job.name}: {error}")
 
             db.commit()
@@ -204,6 +257,7 @@ def submit_slurm_job_sync(job_id: str, db: Session):
     except Exception as e:
         logger.error(f"Error submitting job {job.name}: {e}")
         job.slurm_status = "FAILED"
+        job.error_message = f"Job submission error: {str(e)}"
         db.commit()
 
 
@@ -254,7 +308,9 @@ async def preview_job(
         gpu_type=job_data.gpu_type,
         num_nodes=job_data.num_nodes,
         gpus_per_node=job_data.gpus_per_node,
+        time_limit=job_data.time_limit,
         hydra_overrides=job_data.hydra_overrides,
+        raw_hydra_overrides=job_data.raw_hydra_overrides,
     )
 
     try:
@@ -305,7 +361,9 @@ async def submit_job(
         gpu_type=job_data.gpu_type,
         num_nodes=job_data.num_nodes,
         gpus_per_node=job_data.gpus_per_node,
+        time_limit=job_data.time_limit,
         hydra_overrides=job_data.hydra_overrides,
+        raw_hydra_overrides=job_data.raw_hydra_overrides,
         slurm_status="SUBMITTING"
     )
 
@@ -385,7 +443,8 @@ async def refresh_job_status(job_id: str, db: Session = Depends(get_db)):
         )
 
         with ssh:
-            job_monitor = JobMonitor(ssh)
+            use_login = cluster.get('use_login_shell', False)
+            job_monitor = JobMonitor(ssh, use_login_shell=use_login)
             status, reason = job_monitor.get_job_status(job.slurm_job_id)
 
             job.slurm_status = status
@@ -448,7 +507,8 @@ async def get_job_logs(job_id: str, db: Session = Depends(get_db)):
         )
 
         with ssh:
-            job_monitor = JobMonitor(ssh)
+            use_login = cluster.get('use_login_shell', False)
+            job_monitor = JobMonitor(ssh, use_login_shell=use_login)
 
             # Construct log file path
             log_path = f"{cluster['workspace']}/logs/{job.name}-{job.slurm_job_id}.out"
