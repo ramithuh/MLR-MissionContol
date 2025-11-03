@@ -7,14 +7,16 @@ from app.core.ssh_manager import SSHManager
 class JobMonitor:
     """Service for monitoring SLURM job status and logs."""
 
-    def __init__(self, ssh_manager: SSHManager):
+    def __init__(self, ssh_manager: SSHManager, use_login_shell: bool = False):
         """
         Initialize job monitor.
 
         Args:
             ssh_manager: SSH connection to cluster
+            use_login_shell: Whether to use login shell for SLURM commands
         """
         self.ssh = ssh_manager
+        self.use_login_shell = use_login_shell
 
     def get_job_status(self, slurm_job_id: str) -> Tuple[str, Optional[str]]:
         """
@@ -29,7 +31,7 @@ class JobMonitor:
         """
         # First try squeue (for running/pending jobs)
         cmd = f"squeue -j {slurm_job_id} -h -o '%T'"
-        stdout, stderr, exit_code = self.ssh.execute_command(cmd)
+        stdout, stderr, exit_code = self.ssh.execute_command(cmd, use_login_shell=self.use_login_shell)
 
         if exit_code == 0 and stdout.strip():
             status = stdout.strip()
@@ -37,7 +39,7 @@ class JobMonitor:
 
         # If not in queue, check sacct (for completed/failed jobs)
         cmd = f"sacct -j {slurm_job_id} -n -o State --parsable2"
-        stdout, stderr, exit_code = self.ssh.execute_command(cmd)
+        stdout, stderr, exit_code = self.ssh.execute_command(cmd, use_login_shell=self.use_login_shell)
 
         if exit_code == 0 and stdout.strip():
             lines = stdout.strip().split('\n')
@@ -59,7 +61,7 @@ class JobMonitor:
             Log content
         """
         cmd = f"tail -n {tail_lines} {log_path}"
-        stdout, stderr, exit_code = self.ssh.execute_command(cmd)
+        stdout, stderr, exit_code = self.ssh.execute_command(cmd, use_login_shell=self.use_login_shell)
 
         if exit_code == 0:
             return stdout
@@ -105,7 +107,7 @@ class JobMonitor:
             Tuple of (slurm_job_id, error_message)
         """
         cmd = f"sbatch {sbatch_script_path}"
-        stdout, stderr, exit_code = self.ssh.execute_command(cmd)
+        stdout, stderr, exit_code = self.ssh.execute_command(cmd, use_login_shell=self.use_login_shell)
 
         if exit_code == 0:
             # Parse job ID from output: "Submitted batch job 12345"

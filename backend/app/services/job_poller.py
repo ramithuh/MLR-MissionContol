@@ -116,7 +116,8 @@ class JobStatusPoller:
             )
 
             with ssh:
-                job_monitor = JobMonitor(ssh)
+                use_login = cluster_config.get('use_login_shell', False)
+                job_monitor = JobMonitor(ssh, use_login_shell=use_login)
 
                 # Check status for each job
                 for job in jobs:
