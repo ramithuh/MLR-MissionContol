@@ -150,16 +150,23 @@ function ProjectView() {
                         <span className="text-dark-text-muted"> ({job.gpu_type})</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        job.slurm_status === 'RUNNING' ? 'bg-accent-green/20 text-accent-green' :
-                        job.slurm_status === 'PENDING' ? 'bg-yellow-900/20 text-yellow-400' :
-                        job.slurm_status === 'COMPLETED' ? 'bg-blue-900/20 text-blue-400' :
-                        job.slurm_status === 'FAILED' ? 'bg-red-900/20 text-red-400' :
-                        'bg-dark-border text-dark-text-muted'
-                      }`}>
-                        {job.slurm_status || 'UNKNOWN'}
-                      </span>
+                    <td className="px-6 py-4">
+                      <div>
+                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          job.slurm_status === 'RUNNING' ? 'bg-accent-green/20 text-accent-green' :
+                          job.slurm_status === 'PENDING' ? 'bg-yellow-900/20 text-yellow-400' :
+                          job.slurm_status === 'COMPLETED' ? 'bg-blue-900/20 text-blue-400' :
+                          job.slurm_status === 'FAILED' ? 'bg-red-900/20 text-red-400' :
+                          'bg-dark-border text-dark-text-muted'
+                        }`}>
+                          {job.slurm_status || 'UNKNOWN'}
+                        </span>
+                        {job.slurm_status === 'FAILED' && job.error_message && (
+                          <div className="mt-1 text-xs text-red-400 max-w-xs break-words">
+                            {job.error_message}
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       {job.wandb_run_url ? (
