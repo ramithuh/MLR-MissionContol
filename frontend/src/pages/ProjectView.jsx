@@ -1,15 +1,20 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { getProject, getJobs, syncProject } from '../services/api'
+import { getProject, getJobs, syncProject, archiveJob, unarchiveJob } from '../services/api'
 import ScriptPreviewModal from '../components/ScriptPreviewModal'
+import LogsModal from '../components/LogsModal'
+import JobActionsDropdown from '../components/JobActionsDropdown'
 
 function ProjectView() {
   const { projectId } = useParams()
+  const navigate = useNavigate()
   const [project, setProject] = useState(null)
   const [jobs, setJobs] = useState([])
   const [loading, setLoading] = useState(true)
   const [viewingScript, setViewingScript] = useState(null)
+  const [viewingLogs, setViewingLogs] = useState(null)
+  const [showArchived, setShowArchived] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -20,14 +25,14 @@ function ProjectView() {
     }, 30000)
 
     return () => clearInterval(interval)
-  }, [projectId])
+  }, [projectId, showArchived])
 
   const fetchData = async (showLoading = true) => {
     try {
       if (showLoading) setLoading(true)
       const [projectData, jobsData] = await Promise.all([
         getProject(projectId),
-        getJobs(projectId)
+        getJobs(projectId, showArchived)  // Pass showArchived flag
       ])
       setProject(projectData)
       setJobs(jobsData)
@@ -37,6 +42,55 @@ function ProjectView() {
     } finally {
       if (showLoading) setLoading(false)
     }
+  }
+
+  const handleArchiveJob = async (jobId) => {
+    try {
+      await archiveJob(jobId)
+      toast.success('Job archived')
+      fetchData(false) // Refresh without loading spinner
+    } catch (error) {
+      console.error('Error archiving job:', error)
+      toast.error('Failed to archive job')
+    }
+  }
+
+  const handleUnarchiveJob = async (jobId) => {
+    try {
+      await unarchiveJob(jobId)
+      toast.success('Job unarchived')
+      fetchData(false)
+    } catch (error) {
+      console.error('Error unarchiving job:', error)
+      toast.error('Failed to unarchive job')
+    }
+  }
+
+  const handleCloneRun = (job) => {
+    // Navigate to launch page with cloned job config in state
+    navigate(`/project/${projectId}/launch`, {
+      state: {
+        clonedFrom: {
+          jobId: job.id,
+          jobName: job.name,
+          commitSha: job.commit_sha
+        },
+        config: {
+          description: job.description || '',
+          cluster_name: job.cluster,
+          partition: job.partition,
+          num_nodes: job.num_nodes,
+          gpus_per_node: job.gpus_per_node,
+          gpu_type: job.gpu_type || '',
+          cpus_per_task: job.cpus_per_task,
+          memory: job.memory,
+          time_limit: job.time_limit,
+          config_name: job.config_name || '',
+          hydra_overrides: job.hydra_overrides || {},
+          raw_hydra_overrides: job.raw_hydra_overrides || ''
+        }
+      }
+    })
   }
 
   const handleSync = async () => {
@@ -67,7 +121,7 @@ function ProjectView() {
   }
 
   return (
-    <div className="px-4 py-6">
+    <div className="py-6 w-full">
       {/* Project Header */}
       <div className="bg-dark-card rounded-lg border border-dark-border p-6 mb-6">
         <div className="flex justify-between items-start">
@@ -99,13 +153,25 @@ function ProjectView() {
 
       {/* Job History */}
       <div>
-        <h2 className="text-2xl font-bold text-dark-text-primary mb-4">Job History</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold text-dark-text-primary">Job History</h2>
+          <button
+            onClick={() => setShowArchived(!showArchived)}
+            className={`px-4 py-2 rounded-md transition-colors ${
+              showArchived
+                ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
+                : 'bg-dark-bg hover:bg-dark-card-hover text-dark-text-primary border border-dark-border'
+            }`}
+          >
+            {showArchived ? 'Hide Archived' : 'Show Archived'}
+          </button>
+        </div>
         {jobs.length === 0 ? (
           <div className="bg-dark-card p-8 rounded-lg border border-dark-border text-center text-dark-text-secondary">
-            No jobs submitted for this project yet.
+            {showArchived ? 'No archived jobs.' : 'No jobs submitted for this project yet.'}
           </div>
         ) : (
-          <div className="bg-dark-card rounded-lg border border-dark-border overflow-hidden">
+          <div className="bg-dark-card rounded-lg border border-dark-border overflow-x-auto">
             <table className="min-w-full divide-y divide-dark-border">
               <thead className="bg-dark-bg">
                 <tr>
@@ -197,16 +263,15 @@ function ProjectView() {
                       {new Date(job.submitted_at).toLocaleString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {job.slurm_script ? (
-                        <button
-                          onClick={() => setViewingScript(job.slurm_script)}
-                          className="text-blue-400 hover:text-blue-300 transition-colors"
-                        >
-                          View Script
-                        </button>
-                      ) : (
-                        <span className="text-dark-text-muted">-</span>
-                      )}
+                      <JobActionsDropdown
+                        job={job}
+                        showArchived={showArchived}
+                        onViewScript={() => setViewingScript(job.slurm_script)}
+                        onViewLogs={() => setViewingLogs({ id: job.id, name: job.name })}
+                        onArchive={() => handleArchiveJob(job.id)}
+                        onUnarchive={() => handleUnarchiveJob(job.id)}
+                        onCloneRun={() => handleCloneRun(job)}
+                      />
                     </td>
                   </tr>
                 ))}
@@ -224,6 +289,15 @@ function ProjectView() {
           onConfirm={() => setViewingScript(null)}
           isSubmitting={false}
           viewOnly={true}
+        />
+      )}
+
+      {/* Logs Viewer Modal */}
+      {viewingLogs && (
+        <LogsModal
+          jobId={viewingLogs.id}
+          jobName={viewingLogs.name}
+          onClose={() => setViewingLogs(null)}
         />
       )}
     </div>
