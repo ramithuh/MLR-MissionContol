@@ -9,6 +9,8 @@
 {% else %}
 #SBATCH --gres=gpu:{% if gpu_type %}{{ gpu_type }}:{% endif %}{{ gpus_per_node }}
 {% endif %}
+#SBATCH --cpus-per-task={{ cpus_per_task }}
+#SBATCH --mem={{ memory }}
 #SBATCH --time={{ time_limit }}
 #SBATCH --output={{ output_file }}
 #SBATCH --error={{ output_file }}

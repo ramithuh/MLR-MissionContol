@@ -39,6 +39,8 @@ class SlurmScriptGenerator:
         python_command: str,
         gpu_type: str | None = None,
         gpu_request_style: str = "gres",
+        cpus_per_task: int = 8,
+        memory: str = "64G",
         time_limit: str = "24:00:00",
         output_file: str | None = None,
         install_editable: bool = False,
@@ -82,6 +84,8 @@ class SlurmScriptGenerator:
             "total_gpus": total_gpus,
             "gpu_type": gpu_type,
             "gpu_request_style": gpu_request_style,
+            "cpus_per_task": cpus_per_task,
+            "memory": memory,
             "time_limit": time_limit,
             "output_file": output_file or f"slurm-%j.out",
             "repo_url": repo_url,
@@ -102,6 +106,7 @@ class SlurmScriptGenerator:
         script_path: str,
         hydra_overrides: Dict[str, Any] | None = None,
         raw_hydra_overrides: str | None = None,
+        config_name: str | None = None,
         num_nodes: int = 1,
         gpus_per_node: int = 1
     ) -> str:
@@ -112,6 +117,7 @@ class SlurmScriptGenerator:
             script_path: Path to training script (e.g., "train.py")
             hydra_overrides: Dictionary of Hydra config overrides (from dropdown UI)
             raw_hydra_overrides: Raw string of Hydra overrides (merged with dropdown selections)
+            config_name: Hydra --config-name override (e.g., "config_qwen2.5_1.5b")
             num_nodes: Number of nodes (for distributed training setup)
             gpus_per_node: Number of GPUs per node
 
@@ -120,10 +126,20 @@ class SlurmScriptGenerator:
         """
         cmd = f"python3 {script_path}"
 
+        # Add --config-name first if specified (must come before other overrides)
+        if config_name:
+            cmd += f" --config-name {config_name}"
+
         # Add structured overrides from dropdowns first
         if hydra_overrides:
             for key, value in hydra_overrides.items():
-                cmd += f" {key}={value}"
+                # Quote string values that contain spaces, and escape quotes for bash
+                if isinstance(value, str) and ' ' in value:
+                    # Escape double quotes for bash
+                    escaped_value = value.replace('"', '\\"')
+                    cmd += f' {key}=\\"{escaped_value}\\"'
+                else:
+                    cmd += f" {key}={value}"
 
         # Then add raw overrides (will override dropdown selections if same key)
         # This allows users to use both dropdowns AND add extra overrides

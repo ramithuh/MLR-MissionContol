@@ -31,9 +31,12 @@ class JobCreate(BaseModel):
     gpu_type: str | None = None
     num_nodes: int = 1
     gpus_per_node: int = 1
+    cpus_per_task: int = 8  # Number of CPUs per task
+    memory: str = "64G"  # Memory allocation (e.g., "64G", "128G")
     time_limit: str = "24:00:00"  # HH:MM:SS or HH:MM format
     hydra_overrides: Dict[str, Any] | None = None
     raw_hydra_overrides: str | None = None  # Raw override string (takes precedence over hydra_overrides)
+    config_name: str | None = None  # Hydra --config-name override
 
 
 class JobResponse(BaseModel):
@@ -47,7 +50,10 @@ class JobResponse(BaseModel):
     gpu_type: str | None
     num_nodes: int
     gpus_per_node: int
+    cpus_per_task: int
+    memory: str
     time_limit: str | None
+    config_name: str | None
     hydra_overrides: Dict[str, Any] | None
     raw_hydra_overrides: str | None
     slurm_job_id: str | None
@@ -117,6 +123,7 @@ def generate_slurm_script_for_job(job: Job, project: Project, cluster: dict) -> 
         script_path=project_config.train_script,
         hydra_overrides=job.hydra_overrides,
         raw_hydra_overrides=job.raw_hydra_overrides,
+        config_name=job.config_name,
         num_nodes=job.num_nodes,
         gpus_per_node=job.gpus_per_node
     )
@@ -138,6 +145,8 @@ def generate_slurm_script_for_job(job: Job, project: Project, cluster: dict) -> 
         python_command=python_command,
         gpu_type=job.gpu_type,
         gpu_request_style=cluster.get('gpu_request_style', 'gres'),
+        cpus_per_task=job.cpus_per_task,
+        memory=job.memory,
         time_limit=job.time_limit or "24:00:00",
         output_file=f"{cluster['workspace']}/logs/{job.name}-%j.out",
         conda_env=conda_env,
@@ -308,9 +317,12 @@ async def preview_job(
         gpu_type=job_data.gpu_type,
         num_nodes=job_data.num_nodes,
         gpus_per_node=job_data.gpus_per_node,
+        cpus_per_task=job_data.cpus_per_task,
+        memory=job_data.memory,
         time_limit=job_data.time_limit,
         hydra_overrides=job_data.hydra_overrides,
         raw_hydra_overrides=job_data.raw_hydra_overrides,
+        config_name=job_data.config_name,
     )
 
     try:
@@ -361,9 +373,12 @@ async def submit_job(
         gpu_type=job_data.gpu_type,
         num_nodes=job_data.num_nodes,
         gpus_per_node=job_data.gpus_per_node,
+        cpus_per_task=job_data.cpus_per_task,
+        memory=job_data.memory,
         time_limit=job_data.time_limit,
         hydra_overrides=job_data.hydra_overrides,
         raw_hydra_overrides=job_data.raw_hydra_overrides,
+        config_name=job_data.config_name,
         slurm_status="SUBMITTING"
     )
 
@@ -380,15 +395,24 @@ async def submit_job(
 @router.get("/", response_model=List[JobResponse])
 async def list_jobs(
     project_id: str | None = None,
+    include_archived: bool = False,
     db: Session = Depends(get_db)
 ):
     """
     Get all jobs, optionally filtered by project.
+    By default, archived jobs are excluded.
     """
     query = db.query(Job)
 
     if project_id:
         query = query.filter(Job.project_id == project_id)
+
+    if include_archived:
+        # When include_archived is True, show ONLY archived jobs
+        query = query.filter(Job.archived == 1)
+    else:
+        # When include_archived is False, show ONLY non-archived jobs
+        query = query.filter(Job.archived == 0)
 
     jobs = query.order_by(Job.submitted_at.desc()).all()
     return jobs
@@ -401,6 +425,32 @@ async def get_job(job_id: str, db: Session = Depends(get_db)):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return job
+
+
+@router.post("/{job_id}/archive")
+async def archive_job(job_id: str, db: Session = Depends(get_db)):
+    """Archive a job (hide from default view)."""
+    job = db.query(Job).filter(Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    job.archived = 1
+    db.commit()
+    db.refresh(job)
+    return {"message": "Job archived successfully", "job": job}
+
+
+@router.post("/{job_id}/unarchive")
+async def unarchive_job(job_id: str, db: Session = Depends(get_db)):
+    """Unarchive a job (show in default view)."""
+    job = db.query(Job).filter(Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    job.archived = 0
+    db.commit()
+    db.refresh(job)
+    return {"message": "Job unarchived successfully", "job": job}
 
 
 @router.post("/{job_id}/refresh-status")
@@ -513,8 +563,8 @@ async def get_job_logs(job_id: str, db: Session = Depends(get_db)):
             # Construct log file path
             log_path = f"{cluster['workspace']}/logs/{job.name}-{job.slurm_job_id}.out"
 
-            # Fetch logs
-            logs = job_monitor.get_job_logs(log_path, tail_lines=settings.log_tail_lines)
+            # Fetch entire log file (not just tail)
+            logs = job_monitor.get_job_logs(log_path, tail_lines=None)
 
             # Extract WandB URL if exists
             wandb_url = job_monitor.extract_wandb_url(logs)
