@@ -4,15 +4,16 @@ import { useState, useEffect } from 'react'
  * Dynamic Hydra configuration form component.
  * Generates form fields based on parsed Hydra config schema.
  */
-function HydraConfigForm({ projectId, onConfigChange, initialValues = {} }) {
+function HydraConfigForm({ projectId, onConfigChange, onAvailableConfigsChange, onSchemaChange, initialValues = {}, configName = null }) {
   const [configSchema, setConfigSchema] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [configValues, setConfigValues] = useState(initialValues)
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
 
   useEffect(() => {
     fetchHydraConfig()
-  }, [projectId])
+  }, [projectId, configName])
 
   // Update config values when initialValues prop changes (e.g., from cached job)
   useEffect(() => {
@@ -24,7 +25,12 @@ function HydraConfigForm({ projectId, onConfigChange, initialValues = {} }) {
       setLoading(true)
       setError(null)
 
-      const response = await fetch(`http://localhost:8028/api/projects/${projectId}/hydra-config`)
+      // Add config_name parameter if provided
+      const url = configName
+        ? `/api/projects/${projectId}/hydra-config?config_name=${encodeURIComponent(configName)}`
+        : `/api/projects/${projectId}/hydra-config`
+
+      const response = await fetch(url)
       const data = await response.json()
 
       if (!data.success) {
@@ -33,10 +39,29 @@ function HydraConfigForm({ projectId, onConfigChange, initialValues = {} }) {
       } else {
         setConfigSchema(data.ui_schema)
 
-        // Use initial values if provided (from cached previous job), otherwise start empty
-        // This prevents sending overrides for groups not in Hydra's defaults list
-        setConfigValues(initialValues)
-        onConfigChange(initialValues)
+        // Pass schema to parent if callback provided
+        if (onSchemaChange) {
+          onSchemaChange(data.ui_schema)
+        }
+
+        // Pass available configs to parent if callback provided
+        if (onAvailableConfigsChange && data.available_configs) {
+          onAvailableConfigsChange(data.available_configs)
+        }
+
+        // Only clear overrides if this is NOT the initial load
+        // On initial load, we want to preserve the cached values from initialValues
+        if (!isInitialLoad) {
+          // When config changes, clear overrides and start fresh
+          // This ensures we don't override things already in the new config's defaults
+          setConfigValues({})
+          onConfigChange({})
+        } else {
+          // First load - use initialValues (from cache)
+          setIsInitialLoad(false)
+          setConfigValues(initialValues)
+          onConfigChange(initialValues)
+        }
       }
     } catch (err) {
       console.error('Error fetching Hydra config:', err)

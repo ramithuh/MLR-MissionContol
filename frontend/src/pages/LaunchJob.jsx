@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import {
   getProject,
@@ -17,11 +17,13 @@ import ScriptPreviewModal from '../components/ScriptPreviewModal'
 function LaunchJob() {
   const { projectId } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
 
   const [project, setProject] = useState(null)
   const [projectConfig, setProjectConfig] = useState(null)
   const [clusters, setClusters] = useState([])
   const [loading, setLoading] = useState(true)
+  const [clonedFrom, setClonedFrom] = useState(null)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -32,6 +34,8 @@ function LaunchJob() {
     gpu_type: '',
     num_nodes: 1,
     gpus_per_node: 1,
+    cpus_per_task: 8,
+    memory: '64G',
     time_limit: '24:00:00',
   })
 
@@ -41,6 +45,9 @@ function LaunchJob() {
   const [submitting, setSubmitting] = useState(false)
   const [hydraOverrides, setHydraOverrides] = useState({})
   const [rawHydraOverrides, setRawHydraOverrides] = useState('')
+  const [configName, setConfigName] = useState('')
+  const [availableConfigs, setAvailableConfigs] = useState([])
+  const [configSchema, setConfigSchema] = useState(null)
   const [showPreview, setShowPreview] = useState(false)
   const [previewScript, setPreviewScript] = useState('')
   const [previewLoading, setPreviewLoading] = useState(false)
@@ -71,19 +78,56 @@ function LaunchJob() {
       // Set default job name
       const defaultName = `${projectData.name}-${Date.now()}`
 
-      // If we have cached config from a previous job, populate the form
-      if (lastJobData.success && lastJobData.config) {
+      // Check if we're cloning a run (from navigation state)
+      const clonedConfig = location.state?.config
+      const clonedFromInfo = location.state?.clonedFrom
+
+      if (clonedConfig) {
+        // Populate from cloned run
+        setClonedFrom(clonedFromInfo)
+        setFormData(prev => ({
+          ...prev,
+          name: defaultName,
+          description: clonedConfig.description || prev.description,
+          cluster: clonedConfig.cluster_name || prev.cluster,
+          partition: clonedConfig.partition || prev.partition,
+          gpu_type: clonedConfig.gpu_type || prev.gpu_type,
+          num_nodes: clonedConfig.num_nodes || prev.num_nodes,
+          gpus_per_node: clonedConfig.gpus_per_node || prev.gpus_per_node,
+          cpus_per_task: clonedConfig.cpus_per_task || prev.cpus_per_task,
+          memory: clonedConfig.memory || prev.memory,
+          time_limit: clonedConfig.time_limit || prev.time_limit,
+        }))
+
+        // Populate config name
+        const configNameValue = clonedConfig.config_name || ''
+        console.log('Cloning run with config_name:', configNameValue)
+        setConfigName(configNameValue)
+
+        // Populate Hydra overrides
+        setHydraOverrides(clonedConfig.hydra_overrides || {})
+        setRawHydraOverrides(clonedConfig.raw_hydra_overrides || '')
+
+        toast.success(`Cloned configuration from ${clonedFromInfo.jobName}`, { duration: 3000 })
+      } else if (lastJobData.success && lastJobData.config) {
+        // Fall back to cached config from last job if not cloning
         const cachedConfig = lastJobData.config
         setFormData(prev => ({
           ...prev,
           name: defaultName,
+          description: cachedConfig.description || prev.description,
           cluster: cachedConfig.cluster_name || prev.cluster,
           partition: cachedConfig.partition || prev.partition,
           gpu_type: cachedConfig.gpu_type || prev.gpu_type,
           num_nodes: cachedConfig.num_nodes || prev.num_nodes,
           gpus_per_node: cachedConfig.gpus_per_node || prev.gpus_per_node,
+          cpus_per_task: cachedConfig.cpus_per_task || prev.cpus_per_task,
+          memory: cachedConfig.memory || prev.memory,
           time_limit: cachedConfig.time_limit || prev.time_limit,
         }))
+
+        // Populate config name
+        setConfigName(cachedConfig.config_name || '')
 
         // Populate Hydra overrides
         setHydraOverrides(cachedConfig.hydra_overrides || {})
@@ -138,10 +182,32 @@ function LaunchJob() {
       ...prev,
       [name]: name === 'num_nodes' || name === 'gpus_per_node' ? parseInt(value) : value
     }))
+
+    // Auto-populate experiment_suffix if description changes and experiment_suffix exists in schema
+    if (name === 'description' && value && configSchema) {
+      // Check if experiment_suffix exists in the schema parameters
+      const hasExperimentSuffix = configSchema.parameters?.some(param => param.key === 'experiment_suffix')
+
+      if (hasExperimentSuffix && !hydraOverrides.experiment_suffix) {
+        // Only set if not already manually set by user
+        setHydraOverrides(prev => ({
+          ...prev,
+          experiment_suffix: value
+        }))
+      }
+    }
   }
 
   const handleHydraConfigChange = (config) => {
     setHydraOverrides(config)
+  }
+
+  const handleAvailableConfigsChange = (configs) => {
+    setAvailableConfigs(configs)
+  }
+
+  const handleSchemaChange = (schema) => {
+    setConfigSchema(schema)
   }
 
   const handlePreview = async (e) => {
@@ -152,7 +218,8 @@ function LaunchJob() {
         project_id: projectId,
         ...formData,
         hydra_overrides: Object.keys(hydraOverrides).length > 0 ? hydraOverrides : null,
-        raw_hydra_overrides: rawHydraOverrides.trim() || null
+        raw_hydra_overrides: rawHydraOverrides.trim() || null,
+        config_name: configName.trim() || null
       }
       const result = await previewJob(jobData)
       setPreviewScript(result.script)
@@ -172,7 +239,8 @@ function LaunchJob() {
         project_id: projectId,
         ...formData,
         hydra_overrides: Object.keys(hydraOverrides).length > 0 ? hydraOverrides : null,
-        raw_hydra_overrides: rawHydraOverrides.trim() || null
+        raw_hydra_overrides: rawHydraOverrides.trim() || null,
+        config_name: configName.trim() || null
       }
       await createJob(jobData)
       toast.success('Job submitted successfully!')
@@ -206,6 +274,26 @@ function LaunchJob() {
           <div><span className="font-medium">Commit:</span> {project?.current_commit}</div>
         </div>
       </div>
+
+      {/* Cloned Run Banner */}
+      {clonedFrom && (
+        <div className="bg-blue-900/20 border border-blue-500/40 rounded-lg p-4 mb-6">
+          <div className="flex items-start gap-3">
+            <div className="text-blue-400 text-2xl">📋</div>
+            <div className="flex-1">
+              <div className="text-sm font-medium text-blue-300 mb-1">
+                Cloned from: <span className="text-blue-400">{clonedFrom.jobName}</span>
+              </div>
+              <div className="text-xs text-dark-text-secondary">
+                Original commit: <code className="text-dark-text-muted font-mono">{clonedFrom.commitSha?.substring(0, 7)}</code>
+              </div>
+              <div className="text-xs text-dark-text-secondary mt-1">
+                This run will use your current commit (<code className="text-accent-green font-mono">{project?.current_commit?.substring(0, 7)}</code>)
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Project Configuration Info */}
       {projectConfig && (
@@ -284,6 +372,11 @@ train_script: "path/to/train.py"  # e.g., routines/train.py`}
             className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-md text-dark-text-primary placeholder-dark-text-muted focus:outline-none focus:ring-2 focus:ring-accent-green"
             placeholder="Brief description of this experiment..."
           />
+          {configSchema?.parameters?.some(p => p.key === 'experiment_suffix') && formData.description && (
+            <div className="mt-2 text-xs text-blue-400">
+              ℹ This will also set <code className="text-accent-green">experiment_suffix</code> for WandB tracking
+            </div>
+          )}
         </div>
 
         {/* Cluster Selection */}
@@ -406,6 +499,40 @@ train_script: "path/to/train.py"  # e.g., routines/train.py`}
                   />
                 </div>
 
+                {/* CPUs per Task */}
+                <div>
+                  <label className="block text-sm font-medium text-dark-text-primary mb-2">
+                    CPUs per Task
+                  </label>
+                  <input
+                    type="number"
+                    name="cpus_per_task"
+                    value={formData.cpus_per_task}
+                    onChange={handleInputChange}
+                    min="1"
+                    max="128"
+                    required
+                    className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-md text-dark-text-primary focus:outline-none focus:ring-2 focus:ring-accent-green"
+                  />
+                </div>
+
+                {/* Memory */}
+                <div>
+                  <label className="block text-sm font-medium text-dark-text-primary mb-2">
+                    Memory
+                    <span className="text-xs text-dark-text-muted ml-2">(e.g., 64G, 128G, 256G)</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="memory"
+                    value={formData.memory}
+                    onChange={handleInputChange}
+                    placeholder="64G"
+                    required
+                    className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-md text-dark-text-primary placeholder-dark-text-muted focus:outline-none focus:ring-2 focus:ring-accent-green"
+                  />
+                </div>
+
                 {/* Time Limit */}
                 <div>
                   <label className="block text-sm font-medium text-dark-text-primary mb-2">
@@ -445,10 +572,62 @@ train_script: "path/to/train.py"  # e.g., routines/train.py`}
           <h3 className="text-lg font-medium text-dark-text-primary mb-3">
             Hydra Configuration
           </h3>
+
+          {/* Config Name Override */}
+          <div className="mb-6 bg-dark-card p-4 rounded-md border border-dark-border">
+            <label className="block text-sm font-medium text-dark-text-primary mb-2">
+              Config Name
+              <span className="text-xs text-dark-text-muted ml-2">(Optional: override default config file)</span>
+            </label>
+
+            {availableConfigs.length > 0 ? (
+              <select
+                value={configName}
+                onChange={(e) => setConfigName(e.target.value)}
+                className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-md text-dark-text-primary focus:outline-none focus:ring-2 focus:ring-accent-green text-sm"
+              >
+                <option value="">Default (config.yaml)</option>
+                {availableConfigs
+                  .filter(cfg => cfg !== 'config')
+                  .map(cfg => (
+                    <option key={cfg} value={cfg}>
+                      {cfg}
+                    </option>
+                  ))
+                }
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={configName}
+                onChange={(e) => setConfigName(e.target.value)}
+                placeholder="e.g., config_qwen2.5_1.5b (leave empty for default config.yaml)"
+                className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-md text-dark-text-primary placeholder-dark-text-muted focus:outline-none focus:ring-2 focus:ring-accent-green text-sm"
+              />
+            )}
+
+            <div className="mt-2 text-xs text-dark-text-muted">
+              Use <code className="text-accent-green">--config-name</code> to select a different main config file from your <code>conf/</code> directory.
+              {configName && (
+                <div className="mt-1 text-blue-400">
+                  ✓ Will use: <code className="text-accent-green">--config-name {configName}</code>
+                </div>
+              )}
+              {availableConfigs.length > 1 && (
+                <div className="mt-1 text-dark-text-muted">
+                  Found {availableConfigs.length} config file{availableConfigs.length !== 1 ? 's' : ''} in project
+                </div>
+              )}
+            </div>
+          </div>
+
           <HydraConfigForm
             projectId={projectId}
             onConfigChange={handleHydraConfigChange}
+            onAvailableConfigsChange={handleAvailableConfigsChange}
+            onSchemaChange={handleSchemaChange}
             initialValues={hydraOverrides}
+            configName={configName}
           />
 
           {/* Raw Hydra Overrides */}

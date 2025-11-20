@@ -109,10 +109,15 @@ async def sync_project(project_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/{project_id}/hydra-config")
-async def get_hydra_config(project_id: str, db: Session = Depends(get_db)):
+async def get_hydra_config(project_id: str, config_name: str = None, db: Session = Depends(get_db)):
     """
     Parse Hydra configuration from project's conf/ or configs/ directory.
     Returns a JSON structure for dynamic UI form generation.
+
+    Args:
+        project_id: ID of the project
+        config_name: Optional name of the config file (e.g., "config_qwen2.5_1.5b").
+                    If not provided, defaults to "config.yaml"
     """
     from app.services.hydra_parser import HydraParser
 
@@ -122,13 +127,14 @@ async def get_hydra_config(project_id: str, db: Session = Depends(get_db)):
 
     try:
         parser = HydraParser(project.local_path)
-        config_data = parser.parse_config_groups()
-        ui_schema = parser.build_ui_schema()
+        config_data = parser.parse_config_groups(config_name)
+        ui_schema = parser.build_ui_schema(config_name)
 
         return {
             "success": True,
             "config_groups": config_data["config_groups"],
             "main_config": config_data["main_config"],
+            "available_configs": config_data["available_configs"],
             "ui_schema": ui_schema
         }
     except ValueError as e:
@@ -138,6 +144,7 @@ async def get_hydra_config(project_id: str, db: Session = Depends(get_db)):
             "error": str(e),
             "config_groups": {},
             "main_config": {},
+            "available_configs": [],
             "ui_schema": {"groups": []}
         }
     except Exception as e:
@@ -196,12 +203,16 @@ async def get_last_job_config(project_id: str, db: Session = Depends(get_db)):
     return {
         "success": True,
         "config": {
+            "description": last_job.description,
             "cluster_name": last_job.cluster,
             "partition": last_job.partition,
             "num_nodes": last_job.num_nodes,
             "gpus_per_node": last_job.gpus_per_node,
             "gpu_type": last_job.gpu_type,
+            "cpus_per_task": last_job.cpus_per_task,
+            "memory": last_job.memory,
             "time_limit": last_job.time_limit,
+            "config_name": last_job.config_name,
             "hydra_overrides": last_job.hydra_overrides or {},
             "raw_hydra_overrides": last_job.raw_hydra_overrides or ""
         }

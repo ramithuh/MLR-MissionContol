@@ -23,9 +23,35 @@ class HydraParser:
         else:
             raise ValueError(f"Hydra config directory not found (tried 'conf' and 'configs'): {self.project_path}")
 
-    def parse_config_groups(self) -> Dict[str, Any]:
+    def get_available_configs(self) -> List[str]:
+        """
+        Get list of available main config files (config.yaml, config_*.yaml).
+
+        Returns:
+            List of config names (without .yaml extension)
+        """
+        config_files = []
+
+        # Find all config*.yaml files in the conf directory (not subdirectories)
+        for config_file in self.conf_dir.glob("config*.yaml"):
+            if config_file.is_file():
+                # Extract name without extension
+                name = config_file.stem
+                # Only include if it's "config" or starts with "config_"
+                if name == "config" or name.startswith("config_"):
+                    config_files.append(name)
+
+        # Sort with "config" first, then alphabetically
+        config_files.sort(key=lambda x: (x != "config", x))
+        return config_files
+
+    def parse_config_groups(self, config_name: str = None) -> Dict[str, Any]:
         """
         Parse Hydra configuration directory and extract config groups.
+
+        Args:
+            config_name: Name of the config file to use (e.g., "config_qwen2.5_1.5b").
+                        If None, defaults to "config.yaml"
 
         Returns:
             Dictionary structure:
@@ -44,16 +70,22 @@ class HydraParser:
                         ...
                     }
                 },
-                "main_config": {...}  # config.yaml contents
+                "main_config": {...}  # config.yaml contents,
+                "available_configs": ["config", "config_qwen2.5_1.5b", ...]
             }
         """
         result = {
             "config_groups": {},
-            "main_config": {}
+            "main_config": {},
+            "available_configs": self.get_available_configs()
         }
 
-        # Parse main config.yaml if exists
-        main_config_path = self.conf_dir / "config.yaml"
+        # Parse the specified config file or default to config.yaml
+        if config_name:
+            main_config_path = self.conf_dir / f"{config_name}.yaml"
+        else:
+            main_config_path = self.conf_dir / "config.yaml"
+
         if main_config_path.exists():
             with open(main_config_path, 'r') as f:
                 result["main_config"] = yaml.safe_load(f) or {}
@@ -144,14 +176,18 @@ class HydraParser:
             "default": None  # Will be set by parse_config_groups
         }
 
-    def build_ui_schema(self) -> Dict[str, Any]:
+    def build_ui_schema(self, config_name: str = None) -> Dict[str, Any]:
         """
         Build a JSON schema suitable for dynamic UI form generation.
+
+        Args:
+            config_name: Name of the config file to use (e.g., "config_qwen2.5_1.5b").
+                        If None, defaults to "config.yaml"
 
         Returns a simplified structure that the frontend can use to
         create dropdowns, text inputs, etc.
         """
-        parsed = self.parse_config_groups()
+        parsed = self.parse_config_groups(config_name)
         ui_schema = {
             "groups": [],
             "parameters": []
