@@ -1,6 +1,8 @@
 import axios from 'axios'
 
-const API_BASE_URL = 'http://localhost:8028/api'
+// Use relative /api path in production (proxied via Vite dev server or served from same origin)
+// Falls back to localhost for local development
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -30,8 +32,9 @@ export const syncProject = async (projectId) => {
   return response.data
 }
 
-export const getHydraConfig = async (projectId) => {
-  const response = await api.get(`/projects/${projectId}/hydra-config`)
+export const getHydraConfig = async (projectId, configName = null) => {
+  const params = configName ? { config_name: configName } : {}
+  const response = await api.get(`/projects/${projectId}/hydra-config`, { params })
   return response.data
 }
 
@@ -51,8 +54,10 @@ export const deleteProject = async (projectId) => {
 }
 
 // Jobs
-export const getJobs = async (projectId = null) => {
-  const params = projectId ? { project_id: projectId } : {}
+export const getJobs = async (projectId = null, includeArchived = false) => {
+  const params = {}
+  if (projectId) params.project_id = projectId
+  if (includeArchived) params.include_archived = true
   const response = await api.get('/jobs/', { params })
   return response.data
 }
@@ -79,6 +84,16 @@ export const refreshJobStatus = async (jobId) => {
 
 export const getJobLogs = async (jobId) => {
   const response = await api.get(`/jobs/${jobId}/logs`)
+  return response.data
+}
+
+export const archiveJob = async (jobId) => {
+  const response = await api.post(`/jobs/${jobId}/archive`)
+  return response.data
+}
+
+export const unarchiveJob = async (jobId) => {
+  const response = await api.post(`/jobs/${jobId}/unarchive`)
   return response.data
 }
 

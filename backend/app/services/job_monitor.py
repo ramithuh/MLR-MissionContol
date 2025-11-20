@@ -49,18 +49,23 @@ class JobMonitor:
 
         return "UNKNOWN", "Job not found in squeue or sacct"
 
-    def get_job_logs(self, log_path: str, tail_lines: int = 100) -> str:
+    def get_job_logs(self, log_path: str, tail_lines: int = None) -> str:
         """
         Fetch job logs from cluster.
 
         Args:
             log_path: Path to SLURM output file on cluster
-            tail_lines: Number of lines to fetch from end of file
+            tail_lines: Number of lines to fetch from end of file. If None, fetches entire file.
 
         Returns:
             Log content
         """
-        cmd = f"tail -n {tail_lines} {log_path}"
+        if tail_lines is not None:
+            cmd = f"tail -n {tail_lines} {log_path}"
+        else:
+            # Fetch entire file
+            cmd = f"cat {log_path}"
+
         stdout, stderr, exit_code = self.ssh.execute_command(cmd, use_login_shell=self.use_login_shell)
 
         if exit_code == 0:
