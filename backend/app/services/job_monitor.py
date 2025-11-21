@@ -49,29 +49,78 @@ class JobMonitor:
 
         return "UNKNOWN", "Job not found in squeue or sacct"
 
-    def get_job_logs(self, log_path: str, tail_lines: int = None) -> str:
+    def get_job_logs(self, log_path: str, tail_lines: int = None, max_lines: int = None) -> str:
         """
         Fetch job logs from cluster.
 
         Args:
             log_path: Path to SLURM output file on cluster
-            tail_lines: Number of lines to fetch from end of file. If None, fetches entire file.
+            tail_lines: Number of lines to fetch from end of file. If None, fetches full file.
+            max_lines: Deprecated, ignored for backwards compatibility
 
         Returns:
-            Log content
+            Log content (with carriage returns cleaned and progress bars filtered)
         """
         if tail_lines is not None:
+            # User specified number of lines - just get those with simple tail
             cmd = f"tail -n {tail_lines} {log_path}"
         else:
-            # Fetch entire file
-            cmd = f"cat {log_path}"
+            # Fetch full file but filter out intermediate progress bar updates
+            # Keep lines with 100% and skip intermediate percentage updates
+            cmd = f"cat {log_path} | sed 's/.*\\r//g' | grep -v -E '\\s+[0-9]{{1,2}}%\\|' || cat {log_path}"
 
-        stdout, stderr, exit_code = self.ssh.execute_command(cmd, use_login_shell=self.use_login_shell)
+        # Use longer timeout for log fetching (up to 2 minutes)
+        stdout, stderr, exit_code = self.ssh.execute_command(
+            cmd,
+            use_login_shell=self.use_login_shell,
+            timeout=120
+        )
 
         if exit_code == 0:
             return stdout
         else:
             return f"Error fetching logs: {stderr}"
+
+    @staticmethod
+    def _clean_progress_bars(log_content: str) -> str:
+        """
+        Clean up carriage return (\r) based progress bars from log content.
+
+        Progress bars use \r to overwrite lines. In terminal this looks clean,
+        but in raw logs it creates thousands of lines. We keep only the final
+        state of each progress bar sequence.
+
+        Args:
+            log_content: Raw log content with \r characters
+
+        Returns:
+            Cleaned log content with only final progress bar states
+        """
+        if '\r' not in log_content:
+            # No carriage returns, return as-is
+            return log_content
+
+        lines = []
+        current_line = ""
+
+        for char in log_content:
+            if char == '\r':
+                # Carriage return - reset current line
+                current_line = ""
+            elif char == '\n':
+                # Newline - save current line and start new one
+                if current_line:  # Only add non-empty lines
+                    lines.append(current_line)
+                current_line = ""
+            else:
+                # Regular character
+                current_line += char
+
+        # Don't forget the last line if there's no trailing newline
+        if current_line:
+            lines.append(current_line)
+
+        return '\n'.join(lines)
 
     def extract_wandb_url(self, log_content: str) -> Optional[str]:
         """

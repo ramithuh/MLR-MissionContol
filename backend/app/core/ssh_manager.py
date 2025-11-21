@@ -40,13 +40,14 @@ class SSHManager:
             logger.error(f"Failed to connect to {self.host}: {e}")
             raise
 
-    def execute_command(self, command: str, use_login_shell: bool = False) -> Tuple[str, str, int]:
+    def execute_command(self, command: str, use_login_shell: bool = False, timeout: int = 60) -> Tuple[str, str, int]:
         """
         Execute command on remote host.
 
         Args:
             command: Shell command to execute
             use_login_shell: If True, wrap command in 'bash -lc' to load full environment
+            timeout: Command timeout in seconds (default: 60)
 
         Returns:
             Tuple of (stdout, stderr, exit_code)
@@ -61,11 +62,19 @@ class SSHManager:
             command = f"bash -lc '{escaped_command}'"
 
         logger.debug(f"Executing: {command}")
-        stdin, stdout, stderr = self.client.exec_command(command)
+        stdin, stdout, stderr = self.client.exec_command(command, timeout=timeout)
 
-        exit_code = stdout.channel.recv_exit_status()
-        stdout_str = stdout.read().decode('utf-8')
-        stderr_str = stderr.read().decode('utf-8')
+        # Set channel timeout for reading output
+        stdout.channel.settimeout(timeout)
+        stderr.channel.settimeout(timeout)
+
+        try:
+            exit_code = stdout.channel.recv_exit_status()
+            stdout_str = stdout.read().decode('utf-8', errors='replace')
+            stderr_str = stderr.read().decode('utf-8', errors='replace')
+        except Exception as e:
+            logger.error(f"Command execution timeout or error: {e}")
+            raise TimeoutError(f"Command execution exceeded {timeout}s timeout")
 
         return stdout_str, stderr_str, exit_code
 
