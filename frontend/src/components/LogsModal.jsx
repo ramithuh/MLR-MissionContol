@@ -14,11 +14,19 @@ function LogsModal({ jobId, jobName, onClose }) {
     try {
       setLoading(true)
       setError(null)
+      console.log(`Fetching logs for job ${jobId}...`)
       const data = await getJobLogs(jobId)
+      console.log('Logs received:', data)
       setLogs(data.logs || 'No logs available')
     } catch (err) {
       console.error('Error fetching logs:', err)
-      setError(err.response?.data?.detail || 'Failed to fetch logs')
+      console.error('Error details:', {
+        message: err.message,
+        response: err.response,
+        code: err.code
+      })
+      const errorMsg = err.response?.data?.detail || err.message || 'Failed to fetch logs'
+      setError(errorMsg)
     } finally {
       setLoading(false)
     }

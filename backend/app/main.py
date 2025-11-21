@@ -37,7 +37,10 @@ scheduler.add_job(
 # CORS middleware for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Vite default port
+    allow_origins=[
+        "http://localhost:5173",  # Vite dev server (local development)
+        "https://mlr.ramith.io",  # Production frontend (Cloudflare Tunnel)
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

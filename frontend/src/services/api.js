@@ -1,7 +1,6 @@
 import axios from 'axios'
 
-// Use relative /api path in production (proxied via Vite dev server or served from same origin)
-// Falls back to localhost for local development
+// Always use /api (works for both local dev via Vite proxy and production via Cloudflare Tunnel)
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
 const api = axios.create({
