@@ -5,6 +5,7 @@ import { getProject, getJobs, syncProject, archiveJob, unarchiveJob } from '../s
 import ScriptPreviewModal from '../components/ScriptPreviewModal'
 import LogsModal from '../components/LogsModal'
 import JobActionsDropdown from '../components/JobActionsDropdown'
+import { formatRuntime } from '../utils/formatRuntime'
 
 function ProjectView() {
   const { projectId } = useParams()
@@ -188,6 +189,9 @@ function ProjectView() {
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">
+                    Runtime
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">
                     WandB
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">
@@ -233,6 +237,9 @@ function ProjectView() {
                           </div>
                         )}
                       </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">
+                      {formatRuntime(job.runtime_seconds)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       {job.wandb_run_url ? (

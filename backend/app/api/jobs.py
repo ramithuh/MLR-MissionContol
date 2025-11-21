@@ -61,6 +61,7 @@ class JobResponse(BaseModel):
     slurm_script: str | None
     error_message: str | None
     wandb_run_url: str | None
+    runtime_seconds: int | None
     submitted_at: datetime
     updated_at: datetime
 

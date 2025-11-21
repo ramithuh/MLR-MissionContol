@@ -122,7 +122,7 @@ class JobStatusPoller:
                 # Check status for each job
                 for job in jobs:
                     try:
-                        status, reason = job_monitor.get_job_status(job.slurm_job_id)
+                        status, reason, runtime_seconds = job_monitor.get_job_status(job.slurm_job_id)
 
                         if status != job.slurm_status:
                             logger.info(
@@ -131,6 +131,10 @@ class JobStatusPoller:
                             )
                             job.slurm_status = status
                             job.updated_at = datetime.utcnow()
+
+                        # Update runtime
+                        if runtime_seconds is not None:
+                            job.runtime_seconds = runtime_seconds
 
                         # Extract WandB URL if job is running and we don't have it yet
                         if status == "RUNNING" and not job.wandb_run_url:

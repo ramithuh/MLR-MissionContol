@@ -18,36 +18,44 @@ class JobMonitor:
         self.ssh = ssh_manager
         self.use_login_shell = use_login_shell
 
-    def get_job_status(self, slurm_job_id: str) -> Tuple[str, Optional[str]]:
+    def get_job_status(self, slurm_job_id: str) -> Tuple[str, Optional[str], Optional[int]]:
         """
-        Query SLURM job status.
+        Query SLURM job status and runtime.
 
         Args:
             slurm_job_id: SLURM job ID
 
         Returns:
-            Tuple of (status, reason)
+            Tuple of (status, reason, runtime_seconds)
             Status can be: PENDING, RUNNING, COMPLETED, FAILED, CANCELLED
+            Runtime is in seconds, None if not available
         """
-        # First try squeue (for running/pending jobs)
-        cmd = f"squeue -j {slurm_job_id} -h -o '%T'"
+        # First try squeue (for running/pending jobs) - also get runtime
+        cmd = f"squeue -j {slurm_job_id} -h -o '%T %M'"
         stdout, stderr, exit_code = self.ssh.execute_command(cmd, use_login_shell=self.use_login_shell)
 
         if exit_code == 0 and stdout.strip():
-            status = stdout.strip()
-            return self._normalize_status(status), None
+            parts = stdout.strip().split()
+            status = parts[0] if parts else "UNKNOWN"
+            runtime_str = parts[1] if len(parts) > 1 else None
+            runtime_seconds = self._parse_slurm_time(runtime_str) if runtime_str else None
+            return self._normalize_status(status), None, runtime_seconds
 
         # If not in queue, check sacct (for completed/failed jobs)
-        cmd = f"sacct -j {slurm_job_id} -n -o State --parsable2"
+        cmd = f"sacct -j {slurm_job_id} -n -o State,Elapsed --parsable2"
         stdout, stderr, exit_code = self.ssh.execute_command(cmd, use_login_shell=self.use_login_shell)
 
         if exit_code == 0 and stdout.strip():
             lines = stdout.strip().split('\n')
-            # Take first non-empty line (usually the job step)
-            status = lines[0] if lines else "UNKNOWN"
-            return self._normalize_status(status), None
+            if lines:
+                # Parse first line: State|Elapsed
+                parts = lines[0].split('|')
+                status = parts[0] if parts else "UNKNOWN"
+                runtime_str = parts[1] if len(parts) > 1 else None
+                runtime_seconds = self._parse_slurm_time(runtime_str) if runtime_str else None
+                return self._normalize_status(status), None, runtime_seconds
 
-        return "UNKNOWN", "Job not found in squeue or sacct"
+        return "UNKNOWN", "Job not found in squeue or sacct", None
 
     def get_job_logs(self, log_path: str, tail_lines: int = None, max_lines: int = None) -> str:
         """
@@ -173,6 +181,49 @@ class JobMonitor:
                 return None, f"Could not parse job ID from: {stdout}"
         else:
             return None, f"sbatch failed: {stderr}"
+
+    @staticmethod
+    def _parse_slurm_time(time_str: str) -> Optional[int]:
+        """
+        Parse SLURM time format to seconds.
+
+        SLURM time can be in formats:
+        - MM:SS
+        - HH:MM:SS
+        - D-HH:MM:SS (days-hours:minutes:seconds)
+
+        Args:
+            time_str: Time string from SLURM (e.g., "1:30:45", "2-04:15:30")
+
+        Returns:
+            Total seconds, or None if parsing fails
+        """
+        if not time_str or time_str == "UNLIMITED":
+            return None
+
+        try:
+            total_seconds = 0
+
+            # Handle days if present (e.g., "2-04:15:30")
+            if '-' in time_str:
+                days_part, time_part = time_str.split('-')
+                total_seconds += int(days_part) * 86400  # 24 * 60 * 60
+                time_str = time_part
+
+            # Parse HH:MM:SS or MM:SS
+            parts = time_str.split(':')
+            if len(parts) == 3:  # HH:MM:SS
+                hours, minutes, seconds = parts
+                total_seconds += int(hours) * 3600 + int(minutes) * 60 + int(seconds)
+            elif len(parts) == 2:  # MM:SS
+                minutes, seconds = parts
+                total_seconds += int(minutes) * 60 + int(seconds)
+            else:
+                return None
+
+            return total_seconds
+        except (ValueError, AttributeError):
+            return None
 
     @staticmethod
     def _normalize_status(status: str) -> str:

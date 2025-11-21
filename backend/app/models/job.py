@@ -39,6 +39,7 @@ class Job(Base):
     slurm_status = Column(String, nullable=True)  # PENDING, RUNNING, COMPLETED, FAILED
     slurm_script = Column(Text, nullable=True)  # Store the generated SLURM script
     error_message = Column(Text, nullable=True)  # Capture submission/execution errors
+    runtime_seconds = Column(Integer, nullable=True)  # Job runtime in seconds
 
     # WandB integration
     wandb_run_url = Column(String, nullable=True)
