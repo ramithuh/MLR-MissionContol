@@ -130,10 +130,27 @@ class Job(Base):
 **Priority:** Medium now, High as data grows (will become critical beyond ~5,000 jobs)
 
 **Migration Note:** After adding indexes, create an Alembic migration to update existing database:
-```bash
+```
 alembic revision --autogenerate -m "add job indexes"
 alembic upgrade head
 ```
+
+### 1.4 Log Viewer Performance ✅ IMPLEMENTED
+**Current State:**
+The `JobMonitor` (`app/services/job_monitor.py`) now implements optimized log fetching.
+- Uses `cat` with server-side filtering for full log files.
+- Filters out intermediate progress bar updates (reducing data transfer).
+- Implements timeout protection (120s) to prevent backend stalls.
+
+**Status: IMPLEMENTED**
+- Full log file support (previously limited to tail).
+- Server-side processing using `sed` and `grep`.
+- Robust Unicode handling.
+
+**Impact:**
+- Significantly faster log loading for large files.
+- Reduced bandwidth usage by filtering progress bars.
+- Prevents application hangs on slow connections.
 
 ## 2. Frontend Optimizations
 
@@ -181,6 +198,18 @@ Move to a distributed task queue (e.g., **Celery with Redis**) **only if**:
 
 **Priority:** Low (defer until scale demands it)
 
+### 3.2 Production Deployment ✅ IMPLEMENTED
+**Current State:**
+The system now supports production deployment via Cloudflare Tunnel.
+- `docs/CLOUDFLARE_TUNNEL_SETUP.md` added.
+- Backend configured for CORS with production domains.
+- Frontend configured for same-origin API requests (`/api`).
+
+**Status: IMPLEMENTED**
+- Secure zero-trust access.
+- Publicly accessible URL (`mlr.ramith.io`).
+- Separation of dev and prod environments.
+
 ---
 
 ## Summary: Priority Matrix
@@ -190,7 +219,9 @@ Move to a distributed task queue (e.g., **Celery with Redis**) **only if**:
 | SSH Connection Pooling | ✅ Solved (ControlMaster) | N/A | High (already achieved) |
 | Parallel Cluster Polling | ⚠️ Recommended | Medium-High | Medium (2-3x faster with 3+ clusters) |
 | Database Indexes | ⚠️ Recommended | Medium→High | High (100x faster queries at scale) |
+| Log Viewer Performance | ✅ Implemented | N/A | High (faster logs, less bandwidth) |
 | Real-time UI Updates | ✅ Implemented | N/A | High (already achieved) |
+| Production Deployment | ✅ Implemented | N/A | High (secure remote access) |
 | Task Queue (Celery) | 💡 Future | Low | N/A (not needed yet) |
 
 ## Quick Wins
