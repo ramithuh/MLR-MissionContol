@@ -36,23 +36,43 @@ Workflow: **Push Code → Configure Visually → Launch → Monitor**
 
 ## Features
 
-### MVP Features (Implemented)
+### Core Features (Implemented)
 - **Project Management**: Track local ML repos and their remote origins
 - **Automatic Job Polling**: Background status updates every 30s (stops when jobs complete)
 - **Project-Level Configuration**: Per-project conda environments and training scripts via `.mlops-config.yaml`
 - **Real-time GPU Availability**: Live GPU availability by type (A6000, A100, etc.) with 60s caching
-- **Multi-cluster Support**: Manage jobs across multiple SLURM clusters
+- **Multi-cluster Support**: Manage jobs across multiple SLURM clusters with VPN support
 - **Multi-node Support**: Configure distributed PyTorch Lightning jobs
 - **WandB Integration**: Auto-detect and link to WandB runs from logs
-- **Job History**: Track all experiments per project with descriptions
+- **Job History**: Track all experiments per project with descriptions and archive capability
 - **Toast Notifications**: Visual feedback for all operations (success/error)
 
+### Advanced Configuration (NEW)
+- **Hydra Config Integration**:
+  - Auto-generated forms from Hydra YAML configs with dynamic dropdowns
+  - Support for configuration groups and parameter overrides
+  - Config name override (`--config-name`) for alternate config files
+  - Smart parameter caching across job submissions
+  - Auto-population of `experiment_suffix` from job descriptions
+  - Raw override support for advanced Hydra features
+- **Resource Configuration**:
+  - Configurable CPU allocation per task (default: 8)
+  - Memory allocation per job (e.g., 64G, 128G, 256G)
+  - GPU type selection with live availability
+  - Time limits in flexible formats (HH:MM:SS or DD-HH:MM:SS)
+
+### Job Management (NEW)
+- **Job Cloning**: One-click duplication of job configurations with smart commit handling
+- **Log Viewer**: View full SLURM logs directly in browser (including job headers)
+- **Job Archiving**: Archive old experiments to keep workspace clean
+- **Actions Dropdown**: Clean UI with organized job actions (clone, view logs, archive, etc.)
+
 ### Future Enhancements
-- **Hydra Config UI**: Auto-generated forms from Hydra YAML configs (Phase 2)
 - **Job Cancellation**: Cancel running jobs from UI
-- **Log Viewer UI**: View job logs directly in browser
 - **Job Analytics**: Success rates, resource usage graphs
 - **Multi-user Support**: Authentication and authorization
+- **Hyperparameter Sweeps**: Integration with Hydra sweeps
+- **Notification System**: Email/Slack alerts for job completion
 
 ## Tech Stack
 
@@ -186,8 +206,11 @@ See [docs/PROJECT_CONFIG.md](docs/PROJECT_CONFIG.md) for more options.
 
 - **[QUICKSTART.md](QUICKSTART.md)** - Detailed setup guide
 - **[SETUP.md](SETUP.md)** - Installation and configuration
-- **[docs/PROJECT_CONFIG.md](docs/PROJECT_CONFIG.md)** - Project configuration guide
-- **[docs/MVP_REVIEW.md](docs/MVP_REVIEW.md)** - Architecture analysis and optimization review
+- **[docs/FEATURES.md](docs/FEATURES.md)** - Complete feature guide (Hydra integration, job cloning, configuration)
+- **[docs/PROJECT_CONFIG.md](docs/PROJECT_CONFIG.md)** - Project-level configuration guide
+- **[docs/SSH_CONTROLMASTER_SETUP.md](docs/SSH_CONTROLMASTER_SETUP.md)** - SSH connection optimization
+- **[docs/MVP_REVIEW.md](docs/MVP_REVIEW.md)** - Architecture analysis
+- **[optimization_findings.md](optimization_findings.md)** - Performance optimization recommendations
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - Technical architecture details
 
 ## Development Status
@@ -202,10 +225,14 @@ See [docs/PROJECT_CONFIG.md](docs/PROJECT_CONFIG.md) for more options.
 - [x] Project-level configuration system
 - [x] Toast notifications for UX feedback
 
-### Phase 2: Enhanced Features
-- [ ] Hydra config parser with dynamic UI
+### Phase 2: Enhanced Features - COMPLETE
+- [x] Hydra config parser with dynamic UI
+- [x] Log viewer in browser
+- [x] Job cloning functionality
+- [x] CPU and memory configuration
+- [x] Config name override support
+- [x] Job archiving
 - [ ] Job cancellation from UI
-- [ ] Log viewer in browser
 - [ ] Job filtering and search
 - [ ] WandB metrics display
 
