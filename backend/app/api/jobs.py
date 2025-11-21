@@ -496,9 +496,11 @@ async def refresh_job_status(job_id: str, db: Session = Depends(get_db)):
         with ssh:
             use_login = cluster.get('use_login_shell', False)
             job_monitor = JobMonitor(ssh, use_login_shell=use_login)
-            status, reason = job_monitor.get_job_status(job.slurm_job_id)
+            status, reason, runtime_seconds = job_monitor.get_job_status(job.slurm_job_id)
 
             job.slurm_status = status
+            if runtime_seconds is not None:
+                job.runtime_seconds = runtime_seconds
             db.commit()
             db.refresh(job)
 
