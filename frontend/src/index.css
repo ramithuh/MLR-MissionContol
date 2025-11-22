@@ -2,6 +2,36 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Default Dark Theme */
+  --bg-primary: #0a0a0a;
+  --bg-card: #1a1a1a;
+  --bg-card-hover: #222222;
+  --border-color: #2a2a2a;
+  --text-primary: #ffffff;
+  --text-secondary: #a0a0a0;
+  --text-muted: #707070;
+  
+  --accent-green: #22c55e;
+  --accent-green-hover: #4ade80;
+  --accent-green-dark: #16a34a;
+}
+
+[data-theme='light'] {
+  /* Classic Light Theme */
+  --bg-primary: #ffffff;
+  --bg-card: #f8fafc; /* Slate 50 */
+  --bg-card-hover: #f1f5f9; /* Slate 100 */
+  --border-color: #e2e8f0; /* Slate 200 */
+  --text-primary: #0f172a; /* Slate 900 */
+  --text-secondary: #475569; /* Slate 600 */
+  --text-muted: #94a3b8; /* Slate 400 */
+  
+  --accent-green: #16a34a; /* Green 600 - slightly darker for contrast on white */
+  --accent-green-hover: #15803d; /* Green 700 */
+  --accent-green-dark: #14532d; /* Green 900 */
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -9,8 +39,9 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #0a0a0a;
-  color: #ffffff;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 code {
@@ -20,5 +51,6 @@ code {
 
 #root {
   min-height: 100vh;
-  background-color: #0a0a0a;
+  background-color: var(--bg-primary);
+  transition: background-color 0.3s ease;
 }

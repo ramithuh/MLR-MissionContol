@@ -8,20 +8,20 @@ export default {
     extend: {
       colors: {
         dark: {
-          bg: '#0a0a0a',
-          card: '#1a1a1a',
-          'card-hover': '#222222',
-          border: '#2a2a2a',
+          bg: 'var(--bg-primary)',
+          card: 'var(--bg-card)',
+          'card-hover': 'var(--bg-card-hover)',
+          border: 'var(--border-color)',
           text: {
-            primary: '#ffffff',
-            secondary: '#a0a0a0',
-            muted: '#707070',
+            primary: 'var(--text-primary)',
+            secondary: 'var(--text-secondary)',
+            muted: 'var(--text-muted)',
           }
         },
         accent: {
-          green: '#22c55e',      // Tailwind green-500
-          'green-hover': '#4ade80',  // Tailwind green-400
-          'green-dark': '#16a34a',   // Tailwind green-600
+          green: 'var(--accent-green)',
+          'green-hover': 'var(--accent-green-hover)',
+          'green-dark': 'var(--accent-green-dark)',
         }
       }
     },
