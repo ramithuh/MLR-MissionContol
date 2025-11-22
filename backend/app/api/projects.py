@@ -26,6 +26,7 @@ class ProjectResponse(BaseModel):
     current_commit: str | None
     added_at: datetime
     last_synced: datetime
+    canvas_state: str | None
 
     class Config:
         from_attributes = True
@@ -106,6 +107,27 @@ async def sync_project(project_id: str, db: Session = Depends(get_db)):
     db.refresh(project)
 
     return project
+
+
+class CanvasStateUpdate(BaseModel):
+    canvas_state: str
+
+
+@router.put("/{project_id}/canvas-state")
+async def update_canvas_state(
+    project_id: str, 
+    state_data: CanvasStateUpdate, 
+    db: Session = Depends(get_db)
+):
+    """Update the canvas state for a project."""
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    project.canvas_state = state_data.canvas_state
+    db.commit()
+    
+    return {"success": True}
 
 
 @router.get("/{project_id}/hydra-config")

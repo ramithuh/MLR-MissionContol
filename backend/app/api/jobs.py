@@ -37,6 +37,7 @@ class JobCreate(BaseModel):
     hydra_overrides: Dict[str, Any] | None = None
     raw_hydra_overrides: str | None = None  # Raw override string (takes precedence over hydra_overrides)
     config_name: str | None = None  # Hydra --config-name override
+    parent_job_id: str | None = None  # ID of the parent job (for lineage)
 
 
 class JobResponse(BaseModel):
@@ -64,6 +65,8 @@ class JobResponse(BaseModel):
     runtime_seconds: int | None
     submitted_at: datetime
     updated_at: datetime
+    parent_job_id: str | None
+    config_diff: Dict[str, Any] | None
 
     class Config:
         from_attributes = True
@@ -380,6 +383,7 @@ async def submit_job(
         hydra_overrides=job_data.hydra_overrides,
         raw_hydra_overrides=job_data.raw_hydra_overrides,
         config_name=job_data.config_name,
+        parent_job_id=job_data.parent_job_id,
         slurm_status="SUBMITTING"
     )
 
@@ -408,12 +412,10 @@ async def list_jobs(
     if project_id:
         query = query.filter(Job.project_id == project_id)
 
-    if include_archived:
-        # When include_archived is True, show ONLY archived jobs
-        query = query.filter(Job.archived == 1)
-    else:
+    if not include_archived:
         # When include_archived is False, show ONLY non-archived jobs
         query = query.filter(Job.archived == 0)
+    # When include_archived is True, show ALL jobs (both archived and non-archived)
 
     jobs = query.order_by(Job.submitted_at.desc()).all()
     return jobs
