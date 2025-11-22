@@ -240,7 +240,8 @@ function LaunchJob() {
         ...formData,
         hydra_overrides: Object.keys(hydraOverrides).length > 0 ? hydraOverrides : null,
         raw_hydra_overrides: rawHydraOverrides.trim() || null,
-        config_name: configName.trim() || null
+        config_name: configName.trim() || null,
+        parent_job_id: clonedFrom?.jobId || null  // Set parent when branching
       }
       await createJob(jobData)
       toast.success('Job submitted successfully!')
@@ -334,7 +335,7 @@ function LaunchJob() {
                   Create <code className="text-accent-green">.mlops-config.yaml</code> in your project root:
                 </div>
                 <pre className="mt-2 text-dark-text-primary bg-dark-bg p-2 rounded font-mono overflow-x-auto">
-{`conda_env: "your_env_name"
+                  {`conda_env: "your_env_name"
 train_script: "path/to/train.py"  # e.g., routines/train.py`}
                 </pre>
               </div>

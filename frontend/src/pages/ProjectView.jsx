@@ -143,6 +143,12 @@ function ProjectView() {
               Sync
             </button>
             <Link
+              to={`/project/${projectId}/canvas`}
+              className="bg-dark-border hover:bg-dark-card-hover text-dark-text-primary px-4 py-2 rounded-md transition-colors"
+            >
+              Canvas
+            </Link>
+            <Link
               to={`/project/${projectId}/launch`}
               className="bg-accent-green hover:bg-accent-green-hover text-white px-4 py-2 rounded-md transition-colors"
             >
@@ -158,11 +164,10 @@ function ProjectView() {
           <h2 className="text-2xl font-bold text-dark-text-primary">Job History</h2>
           <button
             onClick={() => setShowArchived(!showArchived)}
-            className={`px-4 py-2 rounded-md transition-colors ${
-              showArchived
+            className={`px-4 py-2 rounded-md transition-colors ${showArchived
                 ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
                 : 'bg-dark-bg hover:bg-dark-card-hover text-dark-text-primary border border-dark-border'
-            }`}
+              }`}
           >
             {showArchived ? 'Hide Archived' : 'Show Archived'}
           </button>
@@ -222,13 +227,12 @@ function ProjectView() {
                     </td>
                     <td className="px-6 py-4">
                       <div>
-                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          job.slurm_status === 'RUNNING' ? 'bg-accent-green/20 text-accent-green' :
-                          job.slurm_status === 'PENDING' ? 'bg-yellow-900/20 text-yellow-400' :
-                          job.slurm_status === 'COMPLETED' ? 'bg-blue-900/20 text-blue-400' :
-                          job.slurm_status === 'FAILED' ? 'bg-red-900/20 text-red-400' :
-                          'bg-dark-border text-dark-text-muted'
-                        }`}>
+                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${job.slurm_status === 'RUNNING' ? 'bg-accent-green/20 text-accent-green' :
+                            job.slurm_status === 'PENDING' ? 'bg-yellow-900/20 text-yellow-400' :
+                              job.slurm_status === 'COMPLETED' ? 'bg-blue-900/20 text-blue-400' :
+                                job.slurm_status === 'FAILED' ? 'bg-red-900/20 text-red-400' :
+                                  'bg-dark-border text-dark-text-muted'
+                          }`}>
                           {job.slurm_status || 'UNKNOWN'}
                         </span>
                         {job.slurm_status === 'FAILED' && job.error_message && (
