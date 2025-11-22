@@ -19,6 +19,7 @@ class Project(Base):
     current_commit = Column(String, nullable=True)
     added_at = Column(DateTime, default=datetime.utcnow)
     last_synced = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    canvas_state = Column(String, nullable=True)  # JSON string storing nodes, edges, and visibleJobIds
 
     # Relationship to jobs
     jobs = relationship("Job", back_populates="project", cascade="all, delete-orphan")

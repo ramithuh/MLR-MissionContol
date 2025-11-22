@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, JSON, Text
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from datetime import datetime
 import uuid
 
@@ -56,6 +56,11 @@ class Job(Base):
 
     # Relationship
     project = relationship("Project", back_populates="jobs")
+    
+    # Lineage
+    parent_job_id = Column(String, ForeignKey("jobs.id"), nullable=True)
+    config_diff = Column(JSON, nullable=True)  # Stores config differences from parent job
+    children = relationship("Job", backref=backref("parent", remote_side=[id]))
 
     def __repr__(self):
         return f"<Job(name='{self.name}', status='{self.slurm_status}', slurm_id='{self.slurm_job_id}')>"
