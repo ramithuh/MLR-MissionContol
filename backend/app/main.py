@@ -5,7 +5,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from app.core.config import settings
 from app.core.database import init_db
-from app.api import projects, jobs, clusters
+from app.api import projects, jobs, clusters, wandb
 from app.services.job_poller import poll_job_statuses
 
 # Configure logging
@@ -80,6 +80,7 @@ async def root():
 # Include API routers
 app.include_router(projects.router, prefix="/api/projects", tags=["projects"])
 app.include_router(jobs.router, prefix="/api/jobs", tags=["jobs"])
+app.include_router(wandb.router, prefix="/api/wandb", tags=["wandb"])
 app.include_router(clusters.router, prefix="/api/clusters", tags=["clusters"])
 
 
