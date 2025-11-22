@@ -52,6 +52,11 @@ export const deleteProject = async (projectId) => {
   return response.data
 }
 
+export const updateCanvasState = async (projectId, canvasState) => {
+  const response = await api.put(`/projects/${projectId}/canvas-state`, { canvas_state: canvasState })
+  return response.data
+}
+
 // Jobs
 export const getJobs = async (projectId = null, includeArchived = false) => {
   const params = {}
